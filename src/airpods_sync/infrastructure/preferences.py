@@ -18,8 +18,23 @@ class JsonPreferences:
         return value if isinstance(value, bool) else default
 
     def set_bool(self, name: str, value: bool) -> None:
+        self._write(name, value)
+
+    def get_int(self, name: str) -> int | None:
+        value = self._read().get(name)
+        # bool is an int subclass; a stray true/false is not a number
+        return value if isinstance(value, int) and not isinstance(value, bool) else None
+
+    def set_int(self, name: str, value: int | None) -> None:
+        """None removes the value, so get_int() falls back to the caller's default."""
+        self._write(name, value)
+
+    def _write(self, name: str, value: object) -> None:
         data = self._read()
-        data[name] = value
+        if value is None:
+            data.pop(name, None)
+        else:
+            data[name] = value
         self._path.parent.mkdir(parents=True, exist_ok=True)
         self._path.write_text(json.dumps(data, indent=2), encoding="utf-8")
 

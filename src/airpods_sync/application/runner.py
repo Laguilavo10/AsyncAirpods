@@ -4,7 +4,9 @@ from __future__ import annotations
 
 import asyncio
 from collections.abc import Callable
+from concurrent.futures import Future
 from dataclasses import replace
+from typing import TypeVar
 
 from airpods_sync.application.auto_switch import AutoSwitcher, AutoSwitchStatus
 from airpods_sync.application.ports import AdvertisementSource, HeadsetControlError
@@ -12,6 +14,7 @@ from airpods_sync.application.tracker import AirPodsTracker
 
 StatusHandler = Callable[[AutoSwitchStatus], None]
 SwitcherCommand = Callable[[AutoSwitcher], None]
+T = TypeVar("T")
 
 
 class SwitcherRunner:
@@ -51,6 +54,25 @@ class SwitcherRunner:
         """Thread-safe: run `command` on the switcher inside the runner's loop."""
         if self._loop is not None:
             self._loop.call_soon_threadsafe(self._execute, command)
+
+    def query(self, read: Callable[[AutoSwitcher], T]) -> Future[T]:
+        """Thread-safe: run `read` on the switcher inside the runner's loop, without a tick.
+
+        For reading state from other threads (the tracker is only touched by the loop).
+        """
+        future: Future[T] = Future()
+        if self._loop is None:
+            future.set_exception(RuntimeError("The runner is not running yet"))
+            return future
+
+        def execute() -> None:
+            try:
+                future.set_result(read(self._switcher))
+            except Exception as error:
+                future.set_exception(error)
+
+        self._loop.call_soon_threadsafe(execute)
+        return future
 
     def stop(self) -> None:
         """Thread-safe."""

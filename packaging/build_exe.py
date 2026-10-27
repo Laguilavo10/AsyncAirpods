@@ -39,6 +39,8 @@ def main() -> None:
         "--hidden-import", "pystray._win32",
         "--collect-submodules", "bleak.backends.winrt",
         "--collect-submodules", "winrt",
+        # CustomTkinter reads its themes from JSON files inside the package
+        "--collect-data", "customtkinter",
     ])
 
 

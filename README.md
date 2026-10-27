@@ -20,7 +20,21 @@ time: extra clicks are ignored, since each request restarts the handshake) · **
 
 Tray menu: *Use on PC* (also a left click) · *Release* · *Auto-switch* ·
 *Pause media on disconnect* · *Notifications* · *Start with Windows* ·
-*Open log folder* · version · *Quit*.
+*Nearby AirPods…* · *Open log folder* · version · *Quit*.
+
+**Nearby AirPods…** opens a live card for every set of AirPods around you, with an
+illustration of the model, batteries, in-ear and signal, and whether auto-switch
+counts it as you (green border). Sony and other brands don't appear: only AirPods
+broadcast this message. There you can:
+
+- **Tune the minimum signal** with a slider while watching your own AirPods' signal
+  and everyone else's. At the office, raise it until a colleague's AirPods say
+  *weaker than* while yours still say *Counts as you*.
+- **Choose the model to follow** (*Follow this model*), or go back to the
+  model of the paired AirPods (*Follow paired model*, the default).
+
+Both are saved and survive restarts; `--min-rssi` on the command line overrides
+the saved signal.
 
 With *Pause media on disconnect* (on by default), whatever the PC is playing
 (Spotify, a browser video...) is paused when the AirPods leave the PC, however
@@ -164,6 +178,9 @@ src/airpods_sync/
 └── tray/                   System tray presentation
     ├── app.py                      TrayApp: icon, menu, status, hotkey
     ├── notifications.py            Which changes deserve a notification
+    ├── nearby.py                   Cards of the Nearby AirPods window (pods grouped by set)
+    ├── nearby_window.py            Nearby AirPods window (CustomTkinter)
+    ├── illustrations.py            Headphone drawings per model family
     └── icons.py                    Icons drawn at runtime
 ```
 

@@ -6,6 +6,7 @@ import asyncio
 import logging
 import os
 from collections.abc import Callable
+from concurrent.futures import Future
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Protocol
@@ -13,9 +14,10 @@ from typing import Protocol
 import pystray
 
 from airpods_sync import __version__, status_text
-from airpods_sync.application.auto_switch import AutoSwitchStatus
+from airpods_sync.application.auto_switch import AutoSwitchStatus, NearbySnapshot
 from airpods_sync.application.runner import StatusHandler, SwitcherRunner
 from airpods_sync.tray.icons import IconState, draw
+from airpods_sync.tray.nearby_window import NearbyWindow
 from airpods_sync.tray.notifications import notification_for
 
 log = logging.getLogger(__name__)
@@ -32,6 +34,8 @@ class StartupRegistration(Protocol):
 class Preferences(Protocol):
     def get_bool(self, name: str, default: bool) -> bool: ...
     def set_bool(self, name: str, value: bool) -> None: ...
+    def get_int(self, name: str) -> int | None: ...
+    def set_int(self, name: str, value: int | None) -> None: ...
 
 
 class Hotkey(Protocol):
@@ -47,6 +51,8 @@ class HotkeyBinding:
 
 NOTIFICATIONS = "notifications"
 PAUSE_MEDIA = "pause_media_on_disconnect"
+MIN_RSSI = "min_rssi"
+FOLLOWED_MODEL = "followed_model_id"  # absent = the paired headset's model
 
 
 class TrayApp:
@@ -70,6 +76,7 @@ class TrayApp:
         self._logged_error: str | None = None
         self._auto_enabled = True
         self._icon_state = IconState.AWAY
+        self._nearby_window = NearbyWindow(self._fetch_nearby, self._set_min_rssi, self._follow_model)
         self._icon = pystray.Icon("airpods-sync", draw(self._icon_state), "AirPods Sync", self._menu())
 
     def run(self) -> None:
@@ -111,6 +118,7 @@ class TrayApp:
             pystray.MenuItem("Release", self._release),
             pystray.MenuItem(lambda _: self._hotkey_hint(), None, enabled=False, visible=lambda _: bool(self._hotkey)),
             pystray.MenuItem("Auto-switch", self._toggle_auto, checked=lambda _: self._auto_enabled),
+            pystray.MenuItem("Nearby AirPods…", lambda icon, item: self._nearby_window.show()),
             pystray.Menu.SEPARATOR,
             pystray.MenuItem(
                 "Pause media on disconnect", self._toggle_pause_media, checked=lambda _: self._pause_media_on()
@@ -146,6 +154,29 @@ class TrayApp:
             self._preferences.set_bool(NOTIFICATIONS, not self._notifications_on())
         except OSError:
             log.exception("Couldn't save the notifications preference")
+
+    def _fetch_nearby(self) -> Future[NearbySnapshot]:
+        if self._runner is None:
+            future: Future[NearbySnapshot] = Future()
+            future.set_exception(RuntimeError("Auto-switch is not running"))
+            return future
+        return self._runner.query(lambda switcher: switcher.nearby())
+
+    def _set_min_rssi(self, min_rssi: int) -> None:
+        self._save_int(MIN_RSSI, min_rssi)
+        if self._runner:
+            self._runner.submit(lambda switcher: switcher.set_min_rssi(min_rssi))
+
+    def _follow_model(self, model_id: int | None) -> None:
+        self._save_int(FOLLOWED_MODEL, model_id)
+        if self._runner:
+            self._runner.submit(lambda switcher: switcher.follow_model(model_id))
+
+    def _save_int(self, name: str, value: int | None) -> None:
+        try:
+            self._preferences.set_int(name, value)
+        except OSError:
+            log.exception("Couldn't save the %s preference", name)
 
     def _pause_media_on(self) -> bool:
         return self._preferences.get_bool(PAUSE_MEDIA, True)

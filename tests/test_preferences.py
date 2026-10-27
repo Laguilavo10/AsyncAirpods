@@ -17,3 +17,21 @@ def test_corrupt_file_gives_defaults(tmp_path):
     path.write_text("{not json", encoding="utf-8")
 
     assert JsonPreferences(path).get_bool("notifications", True)
+
+
+def test_ints_round_trip_and_none_removes_them(tmp_path):
+    preferences = JsonPreferences(tmp_path / "preferences.json")
+    assert preferences.get_int("min_rssi") is None
+
+    preferences.set_int("min_rssi", -50)
+    assert preferences.get_int("min_rssi") == -50
+
+    preferences.set_int("min_rssi", None)
+    assert preferences.get_int("min_rssi") is None
+
+
+def test_a_bool_is_not_an_int(tmp_path):
+    preferences = JsonPreferences(tmp_path / "preferences.json")
+    preferences.set_bool("min_rssi", True)
+
+    assert preferences.get_int("min_rssi") is None

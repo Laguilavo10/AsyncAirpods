@@ -37,19 +37,27 @@ _LOG_BACKUPS = 3
 _PREFERENCES_FILE = _DATA_DIR / "preferences.json"
 
 
-def _build_runner(device_query: str, settings: AutoSwitchSettings, on_status: StatusHandler) -> SwitcherRunner:
+def _build_runner(
+    device_query: str,
+    settings: AutoSwitchSettings,
+    on_status: StatusHandler,
+    followed_model_id: int | None = None,
+) -> SwitcherRunner:
     controller = CoreAudioHeadsetController()
     device = find_headset(controller, device_query)
     tracker = AirPodsTracker()
+    model_id = device.model_id if followed_model_id is None else followed_model_id
     logging.info(
         "Tracking %s (model %s), min RSSI %d", device.name,
-        "any" if device.model_id is None else MODEL_NAMES.get(device.model_id, f"0x{device.model_id:04X}"),
+        "any" if model_id is None else MODEL_NAMES.get(model_id, f"0x{model_id:04X}"),
         settings.min_rssi,
     )
     switcher = AutoSwitcher(
         tracker, CoreAudioActivityMonitor(), controller, device.name, settings,
         model_id=device.model_id, media=WindowsMediaPlayback(),
     )
+    if followed_model_id is not None:
+        switcher.follow_model(followed_model_id)
     return SwitcherRunner(BleakAdvertisementSource(), tracker, switcher, on_status)
 
 
@@ -98,13 +106,15 @@ def _auto(args: argparse.Namespace) -> None:
             print(f"\n{time.strftime('%H:%M:%S')} {event}", flush=True)
         print(render.auto_status(status), end="\r", flush=True)
 
-    runner = _build_runner(args.device, AutoSwitchSettings(min_rssi=args.min_rssi), print_status)
+    settings = AutoSwitchSettings() if args.min_rssi is None else AutoSwitchSettings(min_rssi=args.min_rssi)
+    runner = _build_runner(args.device, settings, print_status)
     print(f"Auto-switching '{runner.device_name}' to this PC (Ctrl+C to quit)", flush=True)
     asyncio.run(runner.run())
 
 
 def _tray(args: argparse.Namespace) -> None:
-    from airpods_sync.tray.app import PAUSE_MEDIA, HotkeyBinding, TrayApp  # pystray is only needed here
+    # pystray is only needed here
+    from airpods_sync.tray.app import FOLLOWED_MODEL, MIN_RSSI, PAUSE_MEDIA, HotkeyBinding, TrayApp
 
     instance = SingleInstance("AirPodsSyncTray")
     if not instance.acquire():
@@ -112,13 +122,17 @@ def _tray(args: argparse.Namespace) -> None:
         return
     preferences = JsonPreferences(_PREFERENCES_FILE)
     settings = AutoSwitchSettings(
-        min_rssi=args.min_rssi,
+        # --min-rssi wins over the value saved from the Nearby AirPods window
+        min_rssi=next(
+            value for value in (args.min_rssi, preferences.get_int(MIN_RSSI), AutoSwitchSettings.min_rssi)
+            if value is not None
+        ),
         wait_for_first_use=True,
         pause_media_on_disconnect=preferences.get_bool(PAUSE_MEDIA, True),
     )
     hotkey = HotkeyBinding("Ctrl+Alt+A", lambda on_press: GlobalHotkey(MOD_CONTROL | MOD_ALT, "A", on_press))
     TrayApp(
-        lambda on_status: _build_runner(args.device, settings, on_status),
+        lambda on_status: _build_runner(args.device, settings, on_status, preferences.get_int(FOLLOWED_MODEL)),
         _startup_registration(),
         preferences,
         _LOG_DIR,
@@ -161,8 +175,9 @@ def _parse_args(argv: list[str] | None) -> argparse.Namespace:
         command.set_defaults(handler=handler)
         if name in ("auto", "tray"):
             command.add_argument(
-                "--min-rssi", type=int, default=AutoSwitchSettings.min_rssi,
-                help="ignore AirPods with a weaker signal (default: %(default)s)",
+                "--min-rssi", type=int, default=None,
+                help=f"ignore AirPods with a weaker signal (default: {AutoSwitchSettings.min_rssi}, "
+                     "or the value saved from the tray's Nearby AirPods window)",
             )
 
     startup = commands.add_parser("startup", help="start the tray app with Windows")

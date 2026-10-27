@@ -140,9 +140,8 @@ audio, and asks the Windows Bluetooth driver to connect or disconnect.
 - The PC cannot know when the iPhone is playing, nor tie a BLE broadcast to a
   specific paired AirPods (the identifying part is encrypted). Model filter plus
   `min_rssi = -55` is the stand-in for "these are mine"; the user wants this at
-  the office, where colleagues wear AirPods. Planned next: a window to pick which
-  nearby AirPods to follow (by model; following across address rotation is
-  heuristic, e.g. by matching battery levels).
+  the office, where colleagues wear AirPods. Both are tunable live from the
+  tray's *Nearby AirPods…* window.
 
 ## Auto-switch rules (agreed with the user)
 
@@ -174,5 +173,13 @@ Icon colors: green on PC, blue connecting, amber paused/on hold, gray away, red 
   *playing* GlobalSystemMediaTransportControls session on its own thread
   (`winrt-Windows.Media.Control`); never the Play/Pause key, which would start
   playback. Detection runs on the 1 s tick, so up to ~1 s may leak to the speakers.
-- Ideas the user postponed: a window to pick which nearby AirPods to follow
-  (see "What is not possible").
+- **Nearby AirPods…** window (`tray/nearby_window.py`, CustomTkinter on its own
+  thread; one card per set from `tray/nearby.py`, which groups both pods by model +
+  batteries + in-ear; drawings from `tray/illustrations.py`; the user rejected the
+  plain table as ugly and chose original drawings over copyrighted product photos): live list from `AutoSwitcher.nearby()` read through
+  `SwitcherRunner.query()` (a Future, so the tracker is only touched on the loop),
+  a min-signal slider (`set_min_rssi`) and *Follow this / paired model*
+  (`follow_model`). Saved as `min_rssi` / `followed_model_id` in preferences.json;
+  `--min-rssi` overrides. Agreed with the user: it can't remember *which* AirPods
+  are theirs (encrypted, rotating addresses), so it tunes model + signal instead.
+  First real capture in the window: own Pro 3 worn at the desk, -34 dBm.

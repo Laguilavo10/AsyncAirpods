@@ -40,3 +40,29 @@ def test_runs_commands_from_other_threads_and_stops():
     assert headset.disconnect_calls == 1
     assert statuses[-1].holding_off
     assert not source.listening
+
+
+def test_query_reads_the_switcher_from_another_thread():
+    source, statuses, answers = FakeSource(), [], []
+    tracker = AirPodsTracker()
+    runner = SwitcherRunner(
+        source, tracker, AutoSwitcher(tracker, FakeAudio(), FakeHeadset(), NAME), statuses.append, tick_seconds=0.01
+    )
+
+    def drive() -> None:
+        while not source.listening:
+            pass
+        answers.append(runner.query(lambda switcher: switcher.device_name).result(timeout=5))
+        runner.stop()
+
+    threading.Thread(target=drive).start()
+    asyncio.run(asyncio.wait_for(runner.run(), timeout=5))
+
+    assert answers == [NAME]
+
+
+def test_query_before_running_fails_instead_of_hanging():
+    tracker = AirPodsTracker()
+    runner = SwitcherRunner(FakeSource(), tracker, AutoSwitcher(tracker, FakeAudio(), FakeHeadset(), NAME), print)
+
+    assert runner.query(lambda switcher: switcher.device_name).exception() is not None

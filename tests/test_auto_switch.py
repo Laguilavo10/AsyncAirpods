@@ -151,6 +151,28 @@ def test_only_the_paired_model_counts_as_wearing():
     assert env.switcher.tick().wearing
 
 
+def test_following_another_model_and_back_to_the_paired_one():
+    env = Env(model_id=0x2027)
+    env.see(PRO2_IN_EAR)
+
+    env.switcher.follow_model(0x2014)
+    assert env.switcher.tick().wearing
+    assert env.switcher.nearby().followed_model_id == 0x2014
+
+    env.switcher.follow_model(None)
+    assert not env.switcher.tick().wearing
+    assert env.switcher.nearby().followed_model_id == 0x2027
+
+
+def test_signal_threshold_changes_at_runtime(env):
+    env.wear(rssi=-50)
+    assert env.switcher.tick().wearing
+
+    env.switcher.set_min_rssi(-45)
+    assert not env.switcher.tick().wearing
+    assert env.switcher.nearby().min_rssi == -45
+
+
 def test_any_model_counts_when_the_paired_model_is_unknown(env):
     env.see(PRO2_IN_EAR)
 

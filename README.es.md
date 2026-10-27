@@ -20,7 +20,21 @@ los clics extra se ignoran, porque cada pedido reinicia la conexión) · **gris*
 
 Menú del ícono: *Use on PC* (también con clic izquierdo) · *Release* · *Auto-switch* ·
 *Pause media on disconnect* · *Notifications* · *Start with Windows* ·
-*Open log folder* · versión · *Quit*.
+*Nearby AirPods…* · *Open log folder* · versión · *Quit*.
+
+**Nearby AirPods…** abre una tarjeta en vivo por cada par de AirPods cercano, con una
+ilustración del modelo, baterías, si están puestos, señal, y si el cambio automático
+los cuenta como tuyos (borde verde). Los Sony y otras marcas no aparecen: solo los
+AirPods emiten este mensaje. Ahí puedes:
+
+- **Ajustar la señal mínima** con un deslizador mientras ves la señal de tus AirPods
+  y la de los demás. En la oficina, súbela hasta que los AirPods de un compañero
+  digan *weaker than* y los tuyos sigan diciendo *Counts as you*.
+- **Elegir el modelo a seguir** (*Follow this model*), o volver al modelo de los
+  AirPods emparejados (*Follow paired model*, el predeterminado).
+
+Las dos cosas se guardan y se mantienen al reiniciar; `--min-rssi` en la línea de
+comandos tiene prioridad sobre la señal guardada.
 
 Con *Pause media on disconnect* (activado por defecto), lo que suene en la PC
 (Spotify, un video del navegador...) se pausa cuando los AirPods se van de la PC,
@@ -164,6 +178,9 @@ src/airpods_sync/
 └── tray/                   Presentación en la bandeja del sistema
     ├── app.py                      TrayApp: ícono, menú, estado, atajo
     ├── notifications.py            Qué cambios merecen una notificación
+    ├── nearby.py                   Tarjetas de la ventana Nearby AirPods (auriculares agrupados por par)
+    ├── nearby_window.py            Ventana Nearby AirPods (CustomTkinter)
+    ├── illustrations.py            Dibujos de auriculares por familia de modelo
     └── icons.py                    Íconos dibujados en tiempo de ejecución
 ```
 

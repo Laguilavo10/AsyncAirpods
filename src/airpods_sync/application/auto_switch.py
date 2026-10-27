@@ -20,7 +20,7 @@ from airpods_sync.application.ports import (
     HeadsetController,
     MediaPlayback,
 )
-from airpods_sync.application.tracker import AirPodsTracker
+from airpods_sync.application.tracker import AirPodsTracker, TrackedAirPods
 
 log = logging.getLogger(__name__)
 
@@ -44,6 +44,14 @@ class AutoSwitchSettings:
     # Pause what the PC is playing when the AirPods disconnect, so it doesn't
     # carry on through the speakers
     pause_media_on_disconnect: bool = True
+
+
+@dataclass(frozen=True)
+class NearbySnapshot:
+    devices: tuple[TrackedAirPods, ...]  # closest first
+    followed_model_id: int | None  # None = any model
+    paired_model_id: int | None
+    min_rssi: int
 
 
 @dataclass(frozen=True)
@@ -81,8 +89,11 @@ class AutoSwitcher:
         self._device_name = device_name
         self._media = media
         self._pause_media = settings.pause_media_on_disconnect
-        # Only broadcasts of this model count as "wearing"; None accepts any model
+        # Only broadcasts of the followed model count as "wearing"; None accepts any model.
+        # It starts as the paired headset's model and can be changed with follow_model()
+        self._paired_model_id = model_id
         self._model_id = model_id
+        self._min_rssi = settings.min_rssi
         self._settings = settings
         self._clock = clock
         self._enabled = True
@@ -98,6 +109,24 @@ class AutoSwitcher:
     @property
     def device_name(self) -> str:
         return self._device_name
+
+    def nearby(self) -> NearbySnapshot:
+        """What the AirPods filters see right now, for showing and tuning them."""
+        return NearbySnapshot(
+            devices=tuple(self._tracker.active()),
+            followed_model_id=self._model_id,
+            paired_model_id=self._paired_model_id,
+            min_rssi=self._min_rssi,
+        )
+
+    def set_min_rssi(self, min_rssi: int) -> None:
+        self._min_rssi = min_rssi
+        log.info("Minimum signal set to %d", min_rssi)
+
+    def follow_model(self, model_id: int | None) -> None:
+        """Count only broadcasts of `model_id`; None goes back to the paired headset's model."""
+        self._model_id = self._paired_model_id if model_id is None else model_id
+        log.info("Following model %s", "any" if self._model_id is None else f"0x{self._model_id:04X}")
 
     def set_enabled(self, enabled: bool) -> None:
         self._enabled = enabled
@@ -278,7 +307,7 @@ class AutoSwitcher:
         for device in self._tracker.active():  # closest first
             if self._model_id is not None and device.status.model_id != self._model_id:
                 continue
-            if device.status.in_ear and device.rssi >= self._settings.min_rssi:
+            if device.status.in_ear and device.rssi >= self._min_rssi:
                 return device.rssi
         return None
 
