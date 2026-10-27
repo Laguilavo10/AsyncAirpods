@@ -43,7 +43,8 @@ class HotkeyBinding:
     create: Callable[[Callable[[], None]], Hotkey]
 
 
-_NOTIFICATIONS = "notifications"
+NOTIFICATIONS = "notifications"
+PAUSE_MEDIA = "pause_media_on_disconnect"
 
 
 class TrayApp:
@@ -107,6 +108,9 @@ class TrayApp:
             pystray.MenuItem(lambda _: self._hotkey_hint(), None, enabled=False, visible=lambda _: bool(self._hotkey)),
             pystray.MenuItem("Auto-switch", self._toggle_auto, checked=lambda _: self._auto_enabled),
             pystray.Menu.SEPARATOR,
+            pystray.MenuItem(
+                "Pause media on disconnect", self._toggle_pause_media, checked=lambda _: self._pause_media_on()
+            ),
             pystray.MenuItem("Notifications", self._toggle_notifications, checked=lambda _: self._notifications_on()),
             pystray.MenuItem("Start with Windows", self._toggle_startup, checked=lambda _: self._startup.is_enabled()),
             pystray.MenuItem("Quit", self._quit),
@@ -128,13 +132,26 @@ class TrayApp:
         return f"{self._hotkey_binding.label}: use on PC / release" if self._hotkey_binding else ""
 
     def _notifications_on(self) -> bool:
-        return self._preferences.get_bool(_NOTIFICATIONS, True)
+        return self._preferences.get_bool(NOTIFICATIONS, True)
 
     def _toggle_notifications(self, icon: pystray.Icon, item: pystray.MenuItem) -> None:
         try:
-            self._preferences.set_bool(_NOTIFICATIONS, not self._notifications_on())
+            self._preferences.set_bool(NOTIFICATIONS, not self._notifications_on())
         except OSError:
             log.exception("Couldn't save the notifications preference")
+
+    def _pause_media_on(self) -> bool:
+        return self._preferences.get_bool(PAUSE_MEDIA, True)
+
+    def _toggle_pause_media(self, icon: pystray.Icon, item: pystray.MenuItem) -> None:
+        enabled = not self._pause_media_on()
+        try:
+            self._preferences.set_bool(PAUSE_MEDIA, enabled)
+        except OSError:
+            log.exception("Couldn't save the pause media preference")
+            return
+        if self._runner:
+            self._runner.submit(lambda switcher: switcher.set_pause_media(enabled))
 
     def _toggle_auto(self, icon: pystray.Icon, item: pystray.MenuItem) -> None:
         self._auto_enabled = not self._auto_enabled

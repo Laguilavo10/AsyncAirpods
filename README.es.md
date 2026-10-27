@@ -19,7 +19,12 @@ los clics extra se ignoran, porque cada pedido reinicia la conexión) · **gris*
 **ámbar** = cambio automático pausado o en espera · **rojo** = error (pasa el mouse para ver el detalle).
 
 Menú del ícono: *Use on PC* (también con clic izquierdo) · *Release* · *Auto-switch* ·
-*Notifications* · *Start with Windows* · *Quit*.
+*Pause media on disconnect* · *Notifications* · *Start with Windows* · *Quit*.
+
+Con *Pause media on disconnect* (activado por defecto), lo que suene en la PC
+(Spotify, un video del navegador...) se pausa cuando los AirPods se van de la PC,
+sea como sea, para que no siga por los altavoces. Es una pausa real, no la tecla
+Play/Pausa, así que si no sonaba nada no empieza a sonar nada.
 
 **Ctrl+Alt+A** funciona desde cualquier programa: hace *Use on PC* si los AirPods
 están en otro lado y *Release* si están en esta PC. Si otro programa ya usa esa
@@ -148,6 +153,7 @@ src/airpods_sync/
 │   ├── windows_audio.py            Medidor de audio y conexión/desconexión Bluetooth
 │   ├── windows_startup.py          Inicio con Windows (clave Run de HKCU, autoinstalación)
 │   ├── windows_hotkey.py           Atajo global (RegisterHotKey)
+│   ├── windows_media.py            Pausar apps multimedia (controles multimedia del sistema)
 │   ├── preferences.py              Preferencias guardadas del ícono (JSON)
 │   └── single_instance.py          Mutex con nombre para que solo corra un ícono
 ├── cli/                    Presentación en terminal

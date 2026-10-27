@@ -21,6 +21,7 @@ from airpods_sync.domain.airpods import MODEL_NAMES
 from airpods_sync.infrastructure.bleak_source import BleakAdvertisementSource
 from airpods_sync.infrastructure.preferences import JsonPreferences
 from airpods_sync.infrastructure.single_instance import SingleInstance
+from airpods_sync.infrastructure.windows_media import WindowsMediaPlayback
 from airpods_sync.infrastructure.windows_hotkey import MOD_ALT, MOD_CONTROL, GlobalHotkey
 from airpods_sync.infrastructure.windows_audio import CoreAudioActivityMonitor, CoreAudioHeadsetController
 from airpods_sync.infrastructure.windows_startup import InstalledExeStartup, RunKeyStartup, default_install_dir
@@ -41,7 +42,8 @@ def _build_runner(device_query: str, settings: AutoSwitchSettings, on_status: St
         settings.min_rssi,
     )
     switcher = AutoSwitcher(
-        tracker, CoreAudioActivityMonitor(), controller, device.name, settings, model_id=device.model_id
+        tracker, CoreAudioActivityMonitor(), controller, device.name, settings,
+        model_id=device.model_id, media=WindowsMediaPlayback(),
     )
     return SwitcherRunner(BleakAdvertisementSource(), tracker, switcher, on_status)
 
@@ -97,18 +99,23 @@ def _auto(args: argparse.Namespace) -> None:
 
 
 def _tray(args: argparse.Namespace) -> None:
-    from airpods_sync.tray.app import HotkeyBinding, TrayApp  # pystray is only needed here
+    from airpods_sync.tray.app import PAUSE_MEDIA, HotkeyBinding, TrayApp  # pystray is only needed here
 
     instance = SingleInstance("AirPodsSyncTray")
     if not instance.acquire():
         logging.info("Tray already running; exiting")
         return
-    settings = AutoSwitchSettings(min_rssi=args.min_rssi, wait_for_first_use=True)
+    preferences = JsonPreferences(_PREFERENCES_FILE)
+    settings = AutoSwitchSettings(
+        min_rssi=args.min_rssi,
+        wait_for_first_use=True,
+        pause_media_on_disconnect=preferences.get_bool(PAUSE_MEDIA, True),
+    )
     hotkey = HotkeyBinding("Ctrl+Alt+A", lambda on_press: GlobalHotkey(MOD_CONTROL | MOD_ALT, "A", on_press))
     TrayApp(
         lambda on_status: _build_runner(args.device, settings, on_status),
         _startup_registration(),
-        JsonPreferences(_PREFERENCES_FILE),
+        preferences,
         hotkey,
     ).run()
 

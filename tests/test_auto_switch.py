@@ -46,12 +46,20 @@ class FakeHeadset:
         self.connected = False
 
 
+class FakeMedia:
+    def __init__(self) -> None:
+        self.pause_calls = 0
+
+    def pause_all(self) -> None:
+        self.pause_calls += 1
+
+
 class Env:
     def __init__(self, settings: AutoSwitchSettings = AutoSwitchSettings(), model_id: int | None = None) -> None:
-        self.clock, self.audio, self.headset = FakeClock(), FakeAudio(), FakeHeadset()
+        self.clock, self.audio, self.headset, self.media = FakeClock(), FakeAudio(), FakeHeadset(), FakeMedia()
         self.tracker = AirPodsTracker(clock=self.clock)
         self.switcher = AutoSwitcher(
-            self.tracker, self.audio, self.headset, NAME, settings, self.clock, model_id=model_id
+            self.tracker, self.audio, self.headset, NAME, settings, self.clock, model_id=model_id, media=self.media
         )
 
     def wear(self, rssi: int = -40) -> None:
@@ -310,6 +318,42 @@ def test_toggle_connects_when_away_and_releases_when_on_pc(env):
     env.switcher.toggle_pc()
     assert env.headset.disconnect_calls == 1
     assert env.advance(1).holding_off
+
+
+def test_pauses_media_when_the_airpods_leave_the_pc(env):
+    env.headset.connected = True
+    env.play(1)
+    assert env.media.pause_calls == 0
+
+    env.headset.connected = False  # the iPhone took them
+    env.advance(3)
+    assert env.media.pause_calls == 1  # once per disconnection
+
+
+def test_release_pauses_media_too(env):
+    env.headset.connected = True
+    env.advance(1)
+
+    env.switcher.release()
+    env.advance(1)
+
+    assert env.media.pause_calls == 1
+
+
+def test_media_keeps_playing_when_pausing_is_off(env):
+    env.switcher.set_pause_media(False)
+    env.headset.connected = True
+    env.advance(1)
+    env.headset.connected = False
+    env.advance(1)
+
+    assert env.media.pause_calls == 0
+
+
+def test_already_disconnected_at_start_does_not_pause(env):
+    env.advance(3)
+
+    assert env.media.pause_calls == 0
 
 
 def test_release_after_a_long_silence_still_holds_off(env):

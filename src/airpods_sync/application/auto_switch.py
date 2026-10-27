@@ -14,7 +14,12 @@ import time
 from collections.abc import Callable
 from dataclasses import dataclass, replace
 
-from airpods_sync.application.ports import AudioActivityMonitor, HeadsetControlError, HeadsetController
+from airpods_sync.application.ports import (
+    AudioActivityMonitor,
+    HeadsetControlError,
+    HeadsetController,
+    MediaPlayback,
+)
 from airpods_sync.application.tracker import AirPodsTracker
 
 log = logging.getLogger(__name__)
@@ -36,6 +41,9 @@ class AutoSwitchSettings:
     resume_after_not_wearing_seconds: float = 60.0
     # Stay inactive until the first use_pc(), so starting the app never takes the AirPods
     wait_for_first_use: bool = False
+    # Pause what the PC is playing when the AirPods disconnect, so it doesn't
+    # carry on through the speakers
+    pause_media_on_disconnect: bool = True
 
 
 @dataclass(frozen=True)
@@ -65,11 +73,14 @@ class AutoSwitcher:
         settings: AutoSwitchSettings = AutoSwitchSettings(),
         clock: Callable[[], float] = time.monotonic,
         model_id: int | None = None,
+        media: MediaPlayback | None = None,
     ) -> None:
         self._tracker = tracker
         self._audio = audio
         self._headset = headset
         self._device_name = device_name
+        self._media = media
+        self._pause_media = settings.pause_media_on_disconnect
         # Only broadcasts of this model count as "wearing"; None accepts any model
         self._model_id = model_id
         self._settings = settings
@@ -91,6 +102,10 @@ class AutoSwitcher:
     def set_enabled(self, enabled: bool) -> None:
         self._enabled = enabled
         log.info("Auto-switch %s", "enabled" if enabled else "disabled")
+
+    def set_pause_media(self, enabled: bool) -> None:
+        self._pause_media = enabled
+        log.info("Pause media on disconnect %s", "enabled" if enabled else "disabled")
 
     def use_pc(self) -> None:
         """Connect now, regardless of the rules. Raises HeadsetControlError."""
@@ -205,6 +220,10 @@ class AutoSwitcher:
             self._connecting_since = None
 
     def _update_hold(self, connected: bool, now: float) -> None:
+        if self._was_connected and not connected and self._pause_media and self._media:
+            # Any way of leaving counts, including Release: Windows falls back to the speakers
+            log.info("%s disconnected; pausing media", self._device_name)
+            self._media.pause_all()
         if self._was_connected and not connected and not self._holding_off:
             self._holding_off = True
             log.info("%s left the PC; holding off", self._device_name)

@@ -54,6 +54,12 @@ class AudioActivityMonitor(Protocol):
         ...
 
 
+class MediaPlayback(Protocol):
+    def pause_all(self) -> None:
+        """Pause every app that is playing media. Returns at once; must not raise."""
+        ...
+
+
 class HeadsetController(Protocol):
     def list_devices(self) -> list[BluetoothAudioDevice]:
         """Paired Bluetooth audio devices and whether each is connected to this PC."""

@@ -168,5 +168,11 @@ Icon colors: green on PC, blue connecting, amber paused/on hold, gray away, red 
   else use_pc. Notifications use pystray's `notify` and `tray/notifications.py`
   (connected, left the PC, new error; never for the first status). The
   *Notifications* toggle is saved in `%LOCALAPPDATA%\AirPodsSync\preferences.json`.
+- *Pause media on disconnect* (default on, saved in the same file): on any
+  connected → disconnected change (iPhone, Release, case) `AutoSwitcher` calls
+  `MediaPlayback.pause_all()`. `infrastructure/windows_media.py` pauses every
+  *playing* GlobalSystemMediaTransportControls session on its own thread
+  (`winrt-Windows.Media.Control`); never the Play/Pause key, which would start
+  playback. Detection runs on the 1 s tick, so up to ~1 s may leak to the speakers.
 - Ideas the user postponed: a window to pick which nearby AirPods to follow
   (see "What is not possible").

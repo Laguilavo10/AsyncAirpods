@@ -19,7 +19,12 @@ time: extra clicks are ignored, since each request restarts the handshake) · **
 **amber** = auto-switch paused or holding off · **red** = error (hover for details).
 
 Tray menu: *Use on PC* (also a left click) · *Release* · *Auto-switch* ·
-*Notifications* · *Start with Windows* · *Quit*.
+*Pause media on disconnect* · *Notifications* · *Start with Windows* · *Quit*.
+
+With *Pause media on disconnect* (on by default), whatever the PC is playing
+(Spotify, a browser video...) is paused when the AirPods leave the PC, however
+they leave, so it doesn't carry on through the speakers. It is a real pause, not
+the Play/Pause key, so nothing starts playing if nothing was.
 
 **Ctrl+Alt+A** works from any app: it does *Use on PC* when the AirPods are
 elsewhere and *Release* when they are on this PC. If another app already uses
@@ -148,6 +153,7 @@ src/airpods_sync/
 │   ├── windows_audio.py            Audio meter and Bluetooth connect/disconnect
 │   ├── windows_startup.py          Start with Windows (HKCU Run key, self-install)
 │   ├── windows_hotkey.py           Global hotkey (RegisterHotKey)
+│   ├── windows_media.py            Pause media apps (system media controls)
 │   ├── preferences.py              Saved tray preferences (JSON)
 │   └── single_instance.py          Named mutex so only one tray app runs
 ├── cli/                    Terminal presentation
