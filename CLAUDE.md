@@ -60,6 +60,10 @@ audio, and asks the Windows Bluetooth driver to connect or disconnect.
   works on any PC wherever the .exe was opened from (the user wants it on an
   office PC too). Stop it with `Stop-Process -Name AirPodsSync`. Onefile runs as
   two processes (bootloader + child); that is normal.
+- The .exe's Properties > Details (version, description, author, copyright, repo
+  URL) come from a version resource that `build_exe.py` generates from
+  `airpods_sync.__version__`, the single source of the version (pyproject reads it
+  too). Bump it before giving the user a new build.
 
 ## Architecture
 
