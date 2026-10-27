@@ -55,6 +55,11 @@ El ícono arranca **inactivo** (color ámbar): abrirlo o prender la PC nunca te 
 los AirPods. El cambio automático empieza después de tu primer *Use on PC*.
 Pasa el mouse por el ícono para ver qué está esperando y las cuentas regresivas.
 
+Si el Bluetooth está apagado o aún no está listo (normal justo al encender Windows),
+o los AirPods no están emparejados, el ícono queda gris y lo indica, y la app reintenta
+sola a los 2, 5 y 10 s, y luego cada 30 s. Tras 3 intentos fallidos se pone roja, y
+sigue reintentando.
+
 ### La regla de respeto
 
 Si los AirPods se van de la PC sin que la PC lo pida (el iPhone los reclamó, elegiste

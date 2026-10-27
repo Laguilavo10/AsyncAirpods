@@ -8,6 +8,16 @@ from __future__ import annotations
 import math
 
 from airpods_sync.application.auto_switch import AutoSwitchSettings, AutoSwitchStatus
+from airpods_sync.application.ports import BluetoothUnavailableError, DeviceNotFoundError
+
+
+def describe_start_failure(error: Exception) -> str:
+    """Why auto-switch couldn't start, short enough for the tray tooltip."""
+    if isinstance(error, BluetoothUnavailableError):
+        return "Bluetooth is off or not ready"
+    if isinstance(error, DeviceNotFoundError):
+        return "AirPods not found among the paired devices"
+    return str(error) or type(error).__name__
 
 
 def describe(status: AutoSwitchStatus, settings: AutoSwitchSettings = AutoSwitchSettings()) -> str:

@@ -66,3 +66,27 @@ def test_query_before_running_fails_instead_of_hanging():
     runner = SwitcherRunner(FakeSource(), tracker, AutoSwitcher(tracker, FakeAudio(), FakeHeadset(), NAME), print)
 
     assert runner.query(lambda switcher: switcher.device_name).exception() is not None
+
+
+def test_commands_submitted_before_start_run_once_it_starts():
+    source, headset, statuses = FakeSource(), FakeHeadset(), []
+    tracker = AirPodsTracker()
+    runner = SwitcherRunner(
+        source, tracker, AutoSwitcher(tracker, FakeAudio(), headset, NAME), statuses.append, tick_seconds=0.01
+    )
+    runner.submit(lambda switcher: switcher.set_enabled(False))
+    runner.stop()  # also accepted before the start
+
+    asyncio.run(asyncio.wait_for(runner.run(), timeout=5))
+
+    assert not statuses[-1].enabled
+
+
+def test_commands_after_the_runner_ended_are_dropped():
+    tracker = AirPodsTracker()
+    runner = SwitcherRunner(FakeSource(), tracker, AutoSwitcher(tracker, FakeAudio(), FakeHeadset(), NAME), print)
+    runner.stop()
+    asyncio.run(asyncio.wait_for(runner.run(), timeout=5))
+
+    runner.submit(lambda switcher: switcher.release())  # must not raise on the closed loop
+    assert runner.query(lambda switcher: switcher.device_name).exception() is not None

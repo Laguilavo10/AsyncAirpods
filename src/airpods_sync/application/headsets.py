@@ -5,12 +5,20 @@ from __future__ import annotations
 import time
 from collections.abc import Callable
 
-from airpods_sync.application.ports import BluetoothAudioDevice, DeviceNotFoundError, HeadsetController
+from airpods_sync.application.ports import (
+    BluetoothAudioDevice,
+    BluetoothUnavailableError,
+    DeviceNotFoundError,
+    HeadsetController,
+)
 
 
 def find_headset(controller: HeadsetController, query: str) -> BluetoothAudioDevice:
     """The single paired device whose name contains `query` (case-insensitive)."""
     devices = controller.list_devices()
+    if not devices:
+        # With the radio off, Windows hides every Bluetooth headset, paired or not
+        raise BluetoothUnavailableError("No Bluetooth audio devices at all. Is Bluetooth turned on?")
     matches = [device for device in devices if query.casefold() in device.name.casefold()]
 
     if len(matches) == 1:

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import threading
 from collections.abc import Callable
 from concurrent.futures import Future
 from dataclasses import replace
@@ -31,8 +32,12 @@ class SwitcherRunner:
         self._switcher = switcher
         self._on_status = on_status
         self._tick_seconds = tick_seconds
+        # Guards the hand-over between other threads and the loop's lifetime
+        self._lock = threading.Lock()
         self._loop: asyncio.AbstractEventLoop | None = None
         self._stopped: asyncio.Event | None = None
+        self._queued: list[SwitcherCommand] = []  # submitted before the loop started
+        self._stop_requested = False
 
     @property
     def device_name(self) -> str:
@@ -40,19 +45,37 @@ class SwitcherRunner:
 
     async def run(self) -> None:
         """Run until stop() is called. Raises BluetoothUnavailableError if scanning cannot start."""
-        self._loop = asyncio.get_running_loop()
-        self._stopped = asyncio.Event()
-        async with self._source.listen(self._tracker.handle):
-            while not self._stopped.is_set():
-                self._on_status(self._switcher.tick())
-                try:
-                    await asyncio.wait_for(self._stopped.wait(), self._tick_seconds)
-                except asyncio.TimeoutError:
-                    pass
+        stopped = asyncio.Event()
+        with self._lock:
+            self._loop = asyncio.get_running_loop()
+            self._stopped = stopped
+            queued, self._queued = self._queued, []
+            if self._stop_requested:
+                stopped.set()
+        try:
+            async with self._source.listen(self._tracker.handle):
+                for command in queued:
+                    self._execute(command)
+                while not stopped.is_set():
+                    self._on_status(self._switcher.tick())
+                    try:
+                        await asyncio.wait_for(stopped.wait(), self._tick_seconds)
+                    except asyncio.TimeoutError:
+                        pass
+        finally:
+            with self._lock:
+                self._loop = None  # later commands are dropped instead of hitting a closed loop
 
     def submit(self, command: SwitcherCommand) -> None:
-        """Thread-safe: run `command` on the switcher inside the runner's loop."""
-        if self._loop is not None:
+        """Thread-safe: run `command` on the switcher inside the runner's loop.
+
+        Commands submitted before run() starts are kept and run as soon as it does.
+        """
+        with self._lock:
+            if self._loop is None:
+                if self._stopped is None:  # not started yet
+                    self._queued.append(command)
+                return
             self._loop.call_soon_threadsafe(self._execute, command)
 
     def query(self, read: Callable[[AutoSwitcher], T]) -> Future[T]:
@@ -61,9 +84,6 @@ class SwitcherRunner:
         For reading state from other threads (the tracker is only touched by the loop).
         """
         future: Future[T] = Future()
-        if self._loop is None:
-            future.set_exception(RuntimeError("The runner is not running yet"))
-            return future
 
         def execute() -> None:
             try:
@@ -71,13 +91,19 @@ class SwitcherRunner:
             except Exception as error:
                 future.set_exception(error)
 
-        self._loop.call_soon_threadsafe(execute)
+        with self._lock:
+            if self._loop is None:
+                future.set_exception(RuntimeError("Auto-switch is not running"))
+            else:
+                self._loop.call_soon_threadsafe(execute)
         return future
 
     def stop(self) -> None:
-        """Thread-safe."""
-        if self._loop is not None and self._stopped is not None:
-            self._loop.call_soon_threadsafe(self._stopped.set)
+        """Thread-safe; also works before run() starts."""
+        with self._lock:
+            self._stop_requested = True
+            if self._loop is not None and self._stopped is not None:
+                self._loop.call_soon_threadsafe(self._stopped.set)
 
     def _execute(self, command: SwitcherCommand) -> None:
         try:

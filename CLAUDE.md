@@ -129,6 +129,11 @@ audio, and asks the Windows Bluetooth driver to connect or disconnect.
   only works with the iPhone's Bluetooth off (Settings, not Control Center).
 - The Windows device name after re-pairing is `AirPods Pro de Andrés  - Find My`
   (two spaces); names are matched by substring (`--device`, default `AirPods`).
+- **Bluetooth off hides every Bluetooth audio endpoint** (paired ones included), so
+  `find_headset` treats an empty list as `BluetoothUnavailableError`. Seen
+  2026-10-27: with the radio off the tray retried, and recovered on the next retry
+  after turning it on. After that the Windows name showed as
+  `AirPods Pro de Andrés` (no " - Find My"): don't rely on the exact name.
 - The user's other headset: Sony WH-CH720N (stereo and "Hands-Free" show up as two
   names). Connect/disconnect is generic; auto-switch needs the AirPods' in-ear signal.
 
@@ -154,6 +159,7 @@ All in `application/auto_switch.py`, defaults in `AutoSwitchSettings`:
 | One attempt at a time; then report failure in the tray (red) | 20 s |
 | AirPods leave the PC without the PC asking → hold off | until 15 s of PC silence (was 30 s; the user lowered it on 2026-10-27; after *Release* the silence counts from the release), or 60 s not worn, or *Use on PC* |
 | Tray starts inactive (`wait_for_first_use=True`); CLI `auto` starts active | first *Use on PC* starts it |
+| Can't start or fails (Bluetooth not ready at boot, AirPods not paired) → retry (`application/supervisor.py`) | after 2, 5, 10 s, then every 30 s; gray, red from the 3rd failure; a run of 120 s resets the delays |
 
 The tray shows what it waits for plus countdowns (`status_text.describe`).
 Icon colors: green on PC, blue connecting, amber paused/on hold, gray away, red error.

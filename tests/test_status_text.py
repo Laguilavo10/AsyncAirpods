@@ -36,3 +36,12 @@ def test_connecting_shows_elapsed_time():
 def test_connected_and_errors_take_priority():
     assert describe(status(connected=True, holding_off=True)) == "AirPods on this PC"
     assert describe(status(error="rejected", connected=True)) == "Error: rejected"
+
+
+def test_start_failures_are_short_enough_for_the_tooltip():
+    from airpods_sync.application.ports import BluetoothUnavailableError, DeviceNotFoundError
+    from airpods_sync.status_text import describe_start_failure
+
+    assert describe_start_failure(BluetoothUnavailableError("radio off")) == "Bluetooth is off or not ready"
+    assert describe_start_failure(DeviceNotFoundError("long list")) == "AirPods not found among the paired devices"
+    assert describe_start_failure(OSError()) == "OSError"

@@ -1,7 +1,7 @@
 import pytest
 
 from airpods_sync.application.headsets import find_headset, wait_until_connected
-from airpods_sync.application.ports import BluetoothAudioDevice, DeviceNotFoundError
+from airpods_sync.application.ports import BluetoothAudioDevice, BluetoothUnavailableError, DeviceNotFoundError
 
 
 class FakeController:
@@ -59,6 +59,12 @@ def test_matches_part_of_the_name_ignoring_case():
 def test_no_match_lists_available_devices():
     with pytest.raises(DeviceNotFoundError, match="WH-CH720N"):
         find_headset(FakeController("WH-CH720N"), "AirPods")
+
+
+def test_no_bluetooth_devices_at_all_means_bluetooth_is_off():
+    # Seen on the user's PC: with the radio off, Windows lists no Bluetooth headsets
+    with pytest.raises(BluetoothUnavailableError):
+        find_headset(FakeController(), "AirPods")
 
 
 def test_ambiguous_match_is_rejected():

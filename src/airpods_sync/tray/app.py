@@ -5,6 +5,7 @@ from __future__ import annotations
 import asyncio
 import logging
 import os
+import threading
 from collections.abc import Callable
 from concurrent.futures import Future
 from dataclasses import dataclass
@@ -16,6 +17,7 @@ import pystray
 from airpods_sync import __version__, status_text
 from airpods_sync.application.auto_switch import AutoSwitchStatus, NearbySnapshot
 from airpods_sync.application.runner import StatusHandler, SwitcherRunner
+from airpods_sync.application.supervisor import run_with_retry
 from airpods_sync.tray.icons import IconState, draw
 from airpods_sync.tray.nearby_window import NearbyWindow
 from airpods_sync.tray.notifications import notification_for
@@ -50,6 +52,8 @@ class HotkeyBinding:
 
 
 NOTIFICATIONS = "notifications"
+# Retrying is normal for a few seconds after Windows starts; beyond this it's worth a red icon
+_FAILURES_SHOWN_AS_ERROR = 3
 PAUSE_MEDIA = "pause_media_on_disconnect"
 MIN_RSSI = "min_rssi"
 FOLLOWED_MODEL = "followed_model_id"  # absent = the paired headset's model
@@ -72,7 +76,10 @@ class TrayApp:
         self._hotkey: Hotkey | None = None
         self._runner: SwitcherRunner | None = None
         self._status: AutoSwitchStatus | None = None
-        self._fatal_error: str | None = None
+        # Why auto-switch isn't running while it retries; None once it runs
+        self._start_problem: str | None = None
+        self._start_problem_persists = False  # several retries failed: show it as an error
+        self._stopping = threading.Event()
         self._logged_error: str | None = None
         self._auto_enabled = True
         self._icon_state = IconState.AWAY
@@ -103,12 +110,26 @@ class TrayApp:
     def _run_switcher(self, icon: pystray.Icon) -> None:
         icon.visible = True
         try:
-            self._runner = self._build_runner(self._on_status)
-            asyncio.run(self._runner.run())
-        except Exception as error:  # thread boundary: surface it in the tray instead of dying silently
-            log.exception("Auto-switch stopped")
-            self._fatal_error = str(error)
-            self._refresh()
+            run_with_retry(self._run_once, self._on_start_failure, self._stopping)
+        except Exception:  # thread boundary: never die silently
+            log.exception("Auto-switch supervisor stopped")
+
+    def _run_once(self) -> None:
+        """Build and run auto-switch; blocks until Quit, raises if it can't start or fails."""
+        runner = self._build_runner(self._on_status)
+        if not self._auto_enabled:  # queued until the runner starts
+            runner.submit(lambda switcher: switcher.set_enabled(False))
+        self._runner = runner
+        if self._stopping.is_set():  # Quit came while building
+            return
+        asyncio.run(runner.run())
+
+    def _on_start_failure(self, error: Exception, failures: int, delay: float) -> None:
+        self._runner = None
+        self._status = None  # whatever it said is stale now
+        self._start_problem = f"{status_text.describe_start_failure(error)} · retrying in {delay:.0f} s"
+        self._start_problem_persists = failures >= _FAILURES_SHOWN_AS_ERROR
+        self._refresh()
 
     def _menu(self) -> pystray.Menu:
         return pystray.Menu(
@@ -215,12 +236,15 @@ class TrayApp:
             log.exception("Couldn't open the log folder")
 
     def _quit(self, icon: pystray.Icon, item: pystray.MenuItem) -> None:
+        self._stopping.set()
         if self._runner:
             self._runner.stop()
         icon.stop()
 
     def _on_status(self, status: AutoSwitchStatus) -> None:
-        changed = status != self._status
+        changed = status != self._status or self._start_problem is not None
+        self._start_problem = None  # statuses only come while auto-switch runs
+        self._start_problem_persists = False
         notification = notification_for(self._status, status)
         if notification and self._notifications_on():
             self._icon.notify(notification.message, notification.title)
@@ -241,7 +265,9 @@ class TrayApp:
 
     def _current_icon_state(self) -> IconState:
         status = self._status
-        if self._fatal_error or (status and status.error):
+        if self._start_problem:
+            return IconState.ERROR if self._start_problem_persists else IconState.AWAY
+        if status and status.error:
             return IconState.ERROR
         if status and status.connected:
             return IconState.ON_PC
@@ -252,8 +278,8 @@ class TrayApp:
         return IconState.AWAY
 
     def _status_text(self) -> str:
-        if self._fatal_error:
-            return f"Error: {self._fatal_error}"
+        if self._start_problem:
+            return f"Error: {self._start_problem}" if self._start_problem_persists else self._start_problem
         if self._status is None:
             return "Starting..."
         return status_text.describe(self._status)

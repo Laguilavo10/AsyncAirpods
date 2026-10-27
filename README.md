@@ -55,6 +55,11 @@ The tray app starts **inactive** (amber icon): launching it, or turning on the
 PC, never takes the AirPods. Auto-switch starts after your first *Use on PC*.
 Hover the icon to see what it is waiting for and any countdown.
 
+If Bluetooth is off or not ready yet (common right after Windows starts), or the
+AirPods aren't paired, the icon stays gray and says so, and the app retries on its
+own after 2, 5 and 10 s, then every 30 s. After 3 failed tries it turns red, and
+keeps retrying.
+
 ### The hold-off rule
 
 If the AirPods leave the PC without the PC asking (the iPhone took them back,
