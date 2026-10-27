@@ -12,14 +12,22 @@ Das doble toque atrás del iPhone y vuelven a él.
 |---|---|---|
 | **PC** | Nada: te pones los AirPods y la PC suena | Tras 2 s de sonido se conectan en ~1.5–4 s |
 | **iPhone** | Doble toque atrás del iPhone ([atajo](#atajo-del-iphone)) | Vuelven al iPhone y la PC **no los recupera** |
-| **Control manual** | Ícono en la bandeja junto al reloj | Ver el estado, cambiar a mano, pausar el cambio automático |
+| **Control manual** | Ícono en la bandeja junto al reloj, o **Ctrl+Alt+A** | Ver el estado, cambiar a mano, pausar el cambio automático |
 
 Colores del ícono: **verde** = en esta PC · **azul** = conectando (un intento a la vez:
 los clics extra se ignoran, porque cada pedido reinicia la conexión) · **gris** = no están en esta PC ·
 **ámbar** = cambio automático pausado o en espera · **rojo** = error (pasa el mouse para ver el detalle).
 
 Menú del ícono: *Use on PC* (también con clic izquierdo) · *Release* · *Auto-switch* ·
-*Start with Windows* · *Quit*.
+*Notifications* · *Start with Windows* · *Quit*.
+
+**Ctrl+Alt+A** funciona desde cualquier programa: hace *Use on PC* si los AirPods
+están en otro lado y *Release* si están en esta PC. Si otro programa ya usa esa
+combinación, el menú no muestra la pista y el log lo indica.
+
+Las notificaciones de Windows avisan cuando los AirPods se conectan, se van de la
+PC o no se pueden conectar. Se apagan con *Notifications*; la elección se guarda en
+`%LOCALAPPDATA%\AirPodsSync\preferences.json`.
 
 ### Al iniciar
 
@@ -138,14 +146,17 @@ src/airpods_sync/
 │   ├── bleak_source.py             Escaneo BLE con bleak
 │   ├── core_audio_interfaces.py    Declaraciones COM que no trae pycaw
 │   ├── windows_audio.py            Medidor de audio y conexión/desconexión Bluetooth
-│   ├── windows_startup.py          Inicio con Windows (clave Run de HKCU)
+│   ├── windows_startup.py          Inicio con Windows (clave Run de HKCU, autoinstalación)
+│   ├── windows_hotkey.py           Atajo global (RegisterHotKey)
+│   ├── preferences.py              Preferencias guardadas del ícono (JSON)
 │   └── single_instance.py          Mutex con nombre para que solo corra un ícono
 ├── cli/                    Presentación en terminal
 │   ├── main.py                     Punto de entrada y raíz de composición
 │   ├── scan.py                     Bucle de escaneo
 │   └── render.py                   Renderizado de texto puro
 └── tray/                   Presentación en la bandeja del sistema
-    ├── app.py                      TrayApp: ícono, menú, estado
+    ├── app.py                      TrayApp: ícono, menú, estado, atajo
+    ├── notifications.py            Qué cambios merecen una notificación
     └── icons.py                    Íconos dibujados en tiempo de ejecución
 ```
 

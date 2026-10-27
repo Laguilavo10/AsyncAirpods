@@ -302,6 +302,16 @@ def test_reports_connect_countdown_and_elapsed_connecting_time(env):
     assert env.advance(3).connecting_for == 3
 
 
+def test_toggle_connects_when_away_and_releases_when_on_pc(env):
+    env.switcher.toggle_pc()
+    assert env.headset.connect_calls == 1
+
+    env.headset.connected = True
+    env.switcher.toggle_pc()
+    assert env.headset.disconnect_calls == 1
+    assert env.advance(1).holding_off
+
+
 def test_release_after_a_long_silence_still_holds_off(env):
     env.wear()
     env.headset.connected = True

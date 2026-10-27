@@ -5,6 +5,7 @@ from __future__ import annotations
 import asyncio
 import logging
 from collections.abc import Callable
+from dataclasses import dataclass
 from typing import Protocol
 
 import pystray
@@ -13,6 +14,7 @@ from airpods_sync import status_text
 from airpods_sync.application.auto_switch import AutoSwitchStatus
 from airpods_sync.application.runner import StatusHandler, SwitcherRunner
 from airpods_sync.tray.icons import IconState, draw
+from airpods_sync.tray.notifications import notification_for
 
 log = logging.getLogger(__name__)
 
@@ -25,10 +27,38 @@ class StartupRegistration(Protocol):
     def disable(self) -> None: ...
 
 
+class Preferences(Protocol):
+    def get_bool(self, name: str, default: bool) -> bool: ...
+    def set_bool(self, name: str, value: bool) -> None: ...
+
+
+class Hotkey(Protocol):
+    def start(self) -> bool: ...
+    def stop(self) -> None: ...
+
+
+@dataclass(frozen=True)
+class HotkeyBinding:
+    label: str  # shown in the menu, e.g. "Ctrl+Alt+A"
+    create: Callable[[Callable[[], None]], Hotkey]
+
+
+_NOTIFICATIONS = "notifications"
+
+
 class TrayApp:
-    def __init__(self, build_runner: RunnerFactory, startup: StartupRegistration) -> None:
+    def __init__(
+        self,
+        build_runner: RunnerFactory,
+        startup: StartupRegistration,
+        preferences: Preferences,
+        hotkey: HotkeyBinding | None = None,
+    ) -> None:
         self._build_runner = build_runner
         self._startup = startup
+        self._preferences = preferences
+        self._hotkey_binding = hotkey
+        self._hotkey: Hotkey | None = None
         self._runner: SwitcherRunner | None = None
         self._status: AutoSwitchStatus | None = None
         self._fatal_error: str | None = None
@@ -39,7 +69,24 @@ class TrayApp:
 
     def run(self) -> None:
         """Blocks until Quit. The switcher runs on pystray's setup thread."""
-        self._icon.run(setup=self._run_switcher)
+        self._start_hotkey()
+        try:
+            self._icon.run(setup=self._run_switcher)
+        finally:
+            if self._hotkey:
+                self._hotkey.stop()
+
+    def _start_hotkey(self) -> None:
+        binding = self._hotkey_binding
+        if binding is None:
+            return
+        hotkey = binding.create(self._toggle_pc)
+        if hotkey.start():
+            self._hotkey = hotkey
+            log.info("Hotkey %s toggles the AirPods", binding.label)
+        else:
+            log.warning("Hotkey %s is taken by another app", binding.label)
+            self._hotkey_binding = None  # don't advertise it in the menu
 
     def _run_switcher(self, icon: pystray.Icon) -> None:
         icon.visible = True
@@ -57,8 +104,10 @@ class TrayApp:
             pystray.Menu.SEPARATOR,
             pystray.MenuItem("Use on PC", self._use_pc, default=True),
             pystray.MenuItem("Release", self._release),
+            pystray.MenuItem(lambda _: self._hotkey_hint(), None, enabled=False, visible=lambda _: bool(self._hotkey)),
             pystray.MenuItem("Auto-switch", self._toggle_auto, checked=lambda _: self._auto_enabled),
             pystray.Menu.SEPARATOR,
+            pystray.MenuItem("Notifications", self._toggle_notifications, checked=lambda _: self._notifications_on()),
             pystray.MenuItem("Start with Windows", self._toggle_startup, checked=lambda _: self._startup.is_enabled()),
             pystray.MenuItem("Quit", self._quit),
         )
@@ -70,6 +119,22 @@ class TrayApp:
     def _release(self, icon: pystray.Icon, item: pystray.MenuItem) -> None:
         if self._runner:
             self._runner.submit(lambda switcher: switcher.release())
+
+    def _toggle_pc(self) -> None:
+        if self._runner:
+            self._runner.submit(lambda switcher: switcher.toggle_pc())
+
+    def _hotkey_hint(self) -> str:
+        return f"{self._hotkey_binding.label}: use on PC / release" if self._hotkey_binding else ""
+
+    def _notifications_on(self) -> bool:
+        return self._preferences.get_bool(_NOTIFICATIONS, True)
+
+    def _toggle_notifications(self, icon: pystray.Icon, item: pystray.MenuItem) -> None:
+        try:
+            self._preferences.set_bool(_NOTIFICATIONS, not self._notifications_on())
+        except OSError:
+            log.exception("Couldn't save the notifications preference")
 
     def _toggle_auto(self, icon: pystray.Icon, item: pystray.MenuItem) -> None:
         self._auto_enabled = not self._auto_enabled
@@ -95,6 +160,9 @@ class TrayApp:
 
     def _on_status(self, status: AutoSwitchStatus) -> None:
         changed = status != self._status
+        notification = notification_for(self._status, status)
+        if notification and self._notifications_on():
+            self._icon.notify(notification.message, notification.title)
         self._status = status
         if status.error and status.error != self._logged_error:
             log.warning(status.error)

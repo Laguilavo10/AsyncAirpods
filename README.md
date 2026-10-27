@@ -12,14 +12,22 @@ Double-tap the back of your iPhone and they go back to it.
 |---|---|---|
 | **PC** | Nothing: wear the AirPods and play sound on the PC | After 2 s of sound they connect in ~1.5–4 s |
 | **iPhone** | Double-tap the back of the iPhone ([shortcut](#iphone-shortcut)) | They go back to the iPhone and the PC **does not take them back** |
-| **Manual control** | Tray icon next to the clock | See status, switch by hand, pause auto-switch |
+| **Manual control** | Tray icon next to the clock, or **Ctrl+Alt+A** | See status, switch by hand, pause auto-switch |
 
 Tray icon colors: **green** = on this PC · **blue** = connecting (one attempt at a
 time: extra clicks are ignored, since each request restarts the handshake) · **gray** = not on this PC ·
 **amber** = auto-switch paused or holding off · **red** = error (hover for details).
 
 Tray menu: *Use on PC* (also a left click) · *Release* · *Auto-switch* ·
-*Start with Windows* · *Quit*.
+*Notifications* · *Start with Windows* · *Quit*.
+
+**Ctrl+Alt+A** works from any app: it does *Use on PC* when the AirPods are
+elsewhere and *Release* when they are on this PC. If another app already uses
+that combination, the menu doesn't show the hint and the log says so.
+
+Windows notifications tell you when the AirPods connect, leave the PC, or fail
+to connect. Turn them off with *Notifications*; the choice is saved in
+`%LOCALAPPDATA%\AirPodsSync\preferences.json`.
 
 ### Starting
 
@@ -138,14 +146,17 @@ src/airpods_sync/
 │   ├── bleak_source.py             BLE scanning with bleak
 │   ├── core_audio_interfaces.py    COM declarations missing from pycaw
 │   ├── windows_audio.py            Audio meter and Bluetooth connect/disconnect
-│   ├── windows_startup.py          Start with Windows (HKCU Run key)
+│   ├── windows_startup.py          Start with Windows (HKCU Run key, self-install)
+│   ├── windows_hotkey.py           Global hotkey (RegisterHotKey)
+│   ├── preferences.py              Saved tray preferences (JSON)
 │   └── single_instance.py          Named mutex so only one tray app runs
 ├── cli/                    Terminal presentation
 │   ├── main.py                     Entry point and composition root
 │   ├── scan.py                     Scan loop
 │   └── render.py                   Pure text rendering
 └── tray/                   System tray presentation
-    ├── app.py                      TrayApp: icon, menu, status
+    ├── app.py                      TrayApp: icon, menu, status, hotkey
+    ├── notifications.py            Which changes deserve a notification
     └── icons.py                    Icons drawn at runtime
 ```
 

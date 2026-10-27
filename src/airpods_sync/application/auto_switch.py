@@ -104,6 +104,13 @@ class AutoSwitcher:
         log.info("Connecting %s on request", self._device_name)
         self._request_connection()
 
+    def toggle_pc(self) -> None:
+        """Release the AirPods if they are on the PC, otherwise use_pc(). Raises HeadsetControlError."""
+        if self._is_connected():
+            self.release()
+        else:
+            self.use_pc()
+
     def release(self) -> None:
         """Disconnect from the PC and keep auto-switch from reconnecting. Raises HeadsetControlError."""
         self._holding_off = True

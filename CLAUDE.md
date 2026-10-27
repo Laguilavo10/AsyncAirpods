@@ -21,8 +21,11 @@ audio, and asks the Windows Bluetooth driver to connect or disconnect.
   needs the AirPods in a given state, and give precise step-by-step instructions.
 - Git: commits are authored by the user only. **Never add `Co-Authored-By: Claude`**
   or any Claude attribution to commits or PRs. The remote is
-  `git@github.com:Laguilavo10/AsyncAirpods.git`; the SSH key has a passphrase, so
-  the user runs `git push` from their own terminal.
+  `git@github.com:Laguilavo10/AsyncAirpods.git`. The SSH key has a passphrase; the
+  user loads it into a Git Bash agent at `~/.ssh/agent.sock` and the global
+  `core.sshCommand` points to it, so Claude can push. After a reboot the agent is
+  gone: `Permission denied (publickey)` means the user must rerun `ssh-agent -a`
+  and `ssh-add`. Don't set a repo-local `core.sshCommand` (it overrides that).
 - Never claim a hardware behavior works until it was observed on the device.
   Several early assumptions were wrong (see "Findings").
 
@@ -160,5 +163,10 @@ Icon colors: green on PC, blue connecting, amber paused/on hold, gray away, red 
 
 - Interactive step-by-step explainer of the whole flow (private artifact):
   https://claude.ai/artifact/6UcT8ukuzsw1FrtCWJXoUa. Republish it if behavior changes.
-- Ideas the user postponed: choose the device from the tray menu, a global
-  hotkey for *Use on PC*, Windows notifications, putting the project under git.
+- Hotkey **Ctrl+Alt+A** (`infrastructure/windows_hotkey.py`, RegisterHotKey on its
+  own message-loop thread) calls `AutoSwitcher.toggle_pc()`: release if on the PC,
+  else use_pc. Notifications use pystray's `notify` and `tray/notifications.py`
+  (connected, left the PC, new error; never for the first status). The
+  *Notifications* toggle is saved in `%LOCALAPPDATA%\AirPodsSync\preferences.json`.
+- Ideas the user postponed: a window to pick which nearby AirPods to follow
+  (see "What is not possible").

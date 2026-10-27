@@ -19,12 +19,16 @@ from airpods_sync.cli import render
 from airpods_sync.cli.scan import run_scan
 from airpods_sync.domain.airpods import MODEL_NAMES
 from airpods_sync.infrastructure.bleak_source import BleakAdvertisementSource
+from airpods_sync.infrastructure.preferences import JsonPreferences
 from airpods_sync.infrastructure.single_instance import SingleInstance
+from airpods_sync.infrastructure.windows_hotkey import MOD_ALT, MOD_CONTROL, GlobalHotkey
 from airpods_sync.infrastructure.windows_audio import CoreAudioActivityMonitor, CoreAudioHeadsetController
 from airpods_sync.infrastructure.windows_startup import InstalledExeStartup, RunKeyStartup, default_install_dir
 
 _DEFAULT_DEVICE_QUERY = "AirPods"
-_LOG_FILE = Path(os.environ.get("LOCALAPPDATA", Path.home())) / "AirPodsSync" / "airpods-sync.log"
+_DATA_DIR = Path(os.environ.get("LOCALAPPDATA", Path.home())) / "AirPodsSync"
+_LOG_FILE = _DATA_DIR / "airpods-sync.log"
+_PREFERENCES_FILE = _DATA_DIR / "preferences.json"
 
 
 def _build_runner(device_query: str, settings: AutoSwitchSettings, on_status: StatusHandler) -> SwitcherRunner:
@@ -93,14 +97,20 @@ def _auto(args: argparse.Namespace) -> None:
 
 
 def _tray(args: argparse.Namespace) -> None:
-    from airpods_sync.tray.app import TrayApp  # pystray is only needed here
+    from airpods_sync.tray.app import HotkeyBinding, TrayApp  # pystray is only needed here
 
     instance = SingleInstance("AirPodsSyncTray")
     if not instance.acquire():
         logging.info("Tray already running; exiting")
         return
     settings = AutoSwitchSettings(min_rssi=args.min_rssi, wait_for_first_use=True)
-    TrayApp(lambda on_status: _build_runner(args.device, settings, on_status), _startup_registration()).run()
+    hotkey = HotkeyBinding("Ctrl+Alt+A", lambda on_press: GlobalHotkey(MOD_CONTROL | MOD_ALT, "A", on_press))
+    TrayApp(
+        lambda on_status: _build_runner(args.device, settings, on_status),
+        _startup_registration(),
+        JsonPreferences(_PREFERENCES_FILE),
+        hotkey,
+    ).run()
 
 
 def _startup(args: argparse.Namespace) -> None:
