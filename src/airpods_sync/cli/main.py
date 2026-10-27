@@ -44,7 +44,11 @@ def _build_runner(
     followed_model_id: int | None = None,
 ) -> SwitcherRunner:
     controller = CoreAudioHeadsetController()
-    device = find_headset(controller, device_query)
+    try:
+        device = find_headset(controller, device_query)
+    except DeviceNotFoundError:
+        _log_audio_endpoints_once(controller)
+        raise
     tracker = AirPodsTracker()
     model_id = device.model_id if followed_model_id is None else followed_model_id
     logging.info(
@@ -59,6 +63,27 @@ def _build_runner(
     if followed_model_id is not None:
         switcher.follow_model(followed_model_id)
     return SwitcherRunner(BleakAdvertisementSource(), tracker, switcher, on_status)
+
+
+_endpoints_logged = False
+
+
+def _log_audio_endpoints_once(controller: CoreAudioHeadsetController) -> None:
+    """Shows how Windows lists the audio devices on a PC where the headset isn't found.
+    Once per run: start-up retries every 30 s would repeat it."""
+    global _endpoints_logged
+    if _endpoints_logged:
+        return
+    _endpoints_logged = True
+    try:
+        lines = controller.describe_all_endpoints()
+    except Exception:
+        logging.exception("Couldn't list the audio endpoints")
+        return
+    logging.warning("Headset not found. Windows audio endpoints (%d):
+  %s",
+                    len(lines), "
+  ".join(lines) or "none")
 
 
 def _startup_registration() -> RunKeyStartup | InstalledExeStartup:

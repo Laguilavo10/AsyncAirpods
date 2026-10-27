@@ -35,6 +35,14 @@ class DeviceNotFoundError(LookupError):
     """No paired Bluetooth audio device matches the requested name."""
 
 
+class NoBluetoothHeadsetsError(DeviceNotFoundError):
+    """Windows lists no Bluetooth headset the app can control.
+
+    Either Bluetooth is off (Windows then hides every Bluetooth headset) or the
+    headsets go through a driver the app doesn't recognize.
+    """
+
+
 class HeadsetControlError(RuntimeError):
     """The OS rejected a connect or disconnect request."""
 

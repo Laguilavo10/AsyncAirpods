@@ -32,7 +32,10 @@ from airpods_sync.infrastructure.core_audio_interfaces import (
 
 _DEVICE_STATE_ACTIVE = 0x1
 _DEVICE_STATE_UNPLUGGED = 0x8  # paired Bluetooth headsets that are not connected
+_DEVICE_STATE_ALL = 0xF
 _PKEY_DEVICE_INTERFACE_FRIENDLY_NAME = "{026E516E-B814-414B-83CD-856D6FEF4822} 2"
+_PKEY_DEVICE_FRIENDLY_NAME = "{A45C254E-DF1C-4EFD-8020-67D146A850E0} 14"
+_STATE_NAMES = {0x1: "active", 0x2: "disabled", 0x4: "not present", 0x8: "unplugged"}
 _BLUETOOTH_FILTER_MARKER = "?\\BTH"  # filter IDs look like {2}.\\?\bthenum#...
 # Stereo filter IDs carry the vendor and product: ..._vid&0001004c_pid&2027#...
 _APPLE_PRODUCT_ID = re.compile(r"_vid&0001004c_pid&([0-9a-f]{4})", re.IGNORECASE)
@@ -108,6 +111,26 @@ class CoreAudioHeadsetController:
         # Windows' own Connect button. One accepted request is enough to proceed.
         if len(errors) == len(filter_ids):
             raise HeadsetControlError(f"Windows rejected the request for '{name}': {errors[0]}")
+
+    def describe_all_endpoints(self) -> list[str]:
+        """Every audio endpoint Windows has, Bluetooth or not, for diagnosing a PC where
+        the headset isn't recognized: its name, state and the driver filter behind it."""
+        collection = self._enumerator.EnumAudioEndpoints(EDataFlow.eAll.value, _DEVICE_STATE_ALL)
+        lines = []
+        for index in range(collection.GetCount()):
+            device = collection.Item(index)
+            try:
+                topology = device.Activate(IDeviceTopology._iid_, comtypes.CLSCTX_ALL, None)
+                filter_id = topology.QueryInterface(IDeviceTopology).GetConnector(0).GetDeviceIdConnectedTo()
+            except COMError as error:
+                filter_id = f"<no connector: {error}>"
+            with warnings.catch_warnings():
+                warnings.simplefilter("ignore")
+                properties = AudioUtilities.CreateDevice(device).properties
+            name = properties.get(_PKEY_DEVICE_FRIENDLY_NAME) or "?"
+            state = _STATE_NAMES.get(device.GetState(), str(device.GetState()))
+            lines.append(f"{name} [{state}] -> {filter_id}")
+        return lines
 
     def _bluetooth_endpoints(self) -> list[tuple[_EndpointInfo, bool]]:
         # All data flows: the hands-free filter may only be reachable from its microphone endpoint
