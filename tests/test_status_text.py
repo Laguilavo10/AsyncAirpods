@@ -45,3 +45,12 @@ def test_start_failures_are_short_enough_for_the_tooltip():
     assert describe_start_failure(BluetoothUnavailableError("radio off")) == "Bluetooth is off or not ready"
     assert describe_start_failure(DeviceNotFoundError("long list")) == "AirPods not found among the paired devices"
     assert describe_start_failure(OSError()) == "OSError"
+
+
+def test_tooltip_text_has_no_countdowns():
+    # Windows hides the tooltip whenever its text changes, so it must stay put
+    assert describe(status(holding_off=True, resume_in=17.2), live=False) == describe(
+        status(holding_off=True, resume_in=3.0), live=False
+    ) == describe(status(holding_off=True, pc_playing=True), live=False)
+    assert describe(status(connecting=True, connecting_for=4.0), live=False) == "Connecting..."
+    assert describe(status(pc_playing=True, connect_in=0.4), live=False) == "PC is playing · about to connect"

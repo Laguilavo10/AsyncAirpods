@@ -83,6 +83,8 @@ class TrayApp:
         self._logged_error: str | None = None
         self._auto_enabled = True
         self._icon_state = IconState.AWAY
+        self._shown_title = "AirPods Sync"
+        self._shown_menu_text = ""
         self._nearby_window = NearbyWindow(self._fetch_nearby, self._set_min_rssi, self._follow_model)
         self._icon = pystray.Icon("airpods-sync", draw(self._icon_state), "AirPods Sync", self._menu())
 
@@ -256,12 +258,20 @@ class TrayApp:
             self._refresh()
 
     def _refresh(self) -> None:
+        # Only send Windows what changed: replacing the tooltip text hides the tooltip,
+        # and statuses arrive every second (and on every sound/silence flip)
         state = self._current_icon_state()
         if state != self._icon_state:
             self._icon_state = state
             self._icon.icon = draw(state)
-        self._icon.title = f"AirPods Sync\n{self._status_text()}"[:127]  # Windows tooltip limit
-        self._icon.update_menu()
+        title = f"AirPods Sync\n{self._status_text(live=False)}"[:127]  # Windows tooltip limit
+        if title != self._shown_title:
+            self._shown_title = title
+            self._icon.title = title
+        menu_text = self._status_text()
+        if menu_text != self._shown_menu_text:
+            self._shown_menu_text = menu_text
+            self._icon.update_menu()
 
     def _current_icon_state(self) -> IconState:
         status = self._status
@@ -277,9 +287,9 @@ class TrayApp:
             return IconState.PAUSED
         return IconState.AWAY
 
-    def _status_text(self) -> str:
+    def _status_text(self, live: bool = True) -> str:
         if self._start_problem:
             return f"Error: {self._start_problem}" if self._start_problem_persists else self._start_problem
         if self._status is None:
             return "Starting..."
-        return status_text.describe(self._status)
+        return status_text.describe(self._status, live=live)
