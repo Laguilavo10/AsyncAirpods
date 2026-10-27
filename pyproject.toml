@@ -1,0 +1,24 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "airpods-sync"
+version = "0.1.0"
+description = "Educational project to bring AirPods auto-switching closer to Windows"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = ["bleak==0.22.3", "pycaw==20260927", "pystray==0.19.5", "Pillow==13.0.0"]
+
+[project.optional-dependencies]
+dev = ["pytest>=8"]
+build = ["pyinstaller==6.16.0"]
+
+[project.scripts]
+airpods-sync = "airpods_sync.cli.main:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
