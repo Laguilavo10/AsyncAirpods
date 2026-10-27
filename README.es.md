@@ -123,6 +123,34 @@ un USB) y marca *Start with Windows* en el menú del ícono: el .exe se copia a
 el original. Para actualizarlo, abre el .exe nuevo y vuelve a marcar la opción
 (desmárcala antes si ya está marcada); reemplaza la copia instalada.
 
+### PCs con App Control (WDAC) o AppLocker
+
+Los PCs administrados pueden bloquear las librerías nativas sin firma de la app
+(`winrt` para Bluetooth y control multimedia, Pillow para imágenes) con *"Una
+directiva de Control de aplicaciones bloqueó este archivo"*. No hay que esquivar la
+política, sino autorizar la app en ella:
+
+```powershell
+python packaging\build_exe.py --onedir                        # dist\AirPodsSync\
+python packaging\build_exe.py --onedir --sign-thumbprint <TP> # además, firmarla
+```
+
+`--onedir` genera una carpeta cuyos archivos no cambian entre ejecuciones (el .exe
+único se descomprime cada vez en una carpeta temporal nueva, difícil de autorizar).
+Cópiala a `C:\Program Files\AirPodsSync`; *Start with Windows* registra entonces el
+.exe en su sitio. Para autorizarla:
+
+- **Regla de firmante (recomendada):** `--sign-thumbprint` firma cada `.exe/.dll/.pyd`
+  sin firma con un certificado de firma de código del almacén de Windows en el que
+  confíe la política. Las versiones nuevas siguen autorizadas.
+- **Reglas por hash:** `SHA256SUMS.txt` en la carpeta lista cada binario. Con WDAC,
+  una política suplementaria: `New-CIPolicy -ScanPath "C:\Program Files\AirPodsSync" -Level Hash -UserPEs -MultiplePolicyFormat -FilePath AirPodsSync.xml`,
+  luego `Set-CIPolicyIdInfo -SupplementsBasePolicyID <GUID de la política base>` y
+  `ConvertFrom-CIPolicy`. Los hashes cambian con cada build.
+
+El registro de eventos CodeIntegrity (evento 3077) indica qué política bloqueó un
+archivo. Si es Smart App Control y no una política administrada, no admite excepciones.
+
 ## Comandos
 
 ```powershell

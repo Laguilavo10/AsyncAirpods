@@ -68,10 +68,18 @@ audio, and asks the Windows Bluetooth driver to connect or disconnect.
   build, launch the .exe and check the log has a "Tracking" line before handing it
   over. Same-second edits of a same-size file (e.g. via `git stash pop`) can leave
   a stale `.pyc`; delete `__pycache__` if the version looks wrong.
-- Office PC (Intel CPU): the headset wasn't found although Bluetooth was on and the
-  AirPods connected. Suspected Intel Bluetooth audio offload (endpoints behind an
-  Intel SST filter, not `bthenum`). 0.3.2 logs every audio endpoint with its filter
-  ID once when the headset isn't found; waiting for that log.
+- Office PC (Intel CPU): 0.3.2 failed with *"Una directiva de Control de
+  aplicaciones bloqueó este archivo"* loading `_winrt_windows_media_control`.
+  The PC enforces App Control: only Python's own binaries (signed by the PSF)
+  load; `winrt` (BLE too) and Pillow are unsigned. The user **is the company's IT**:
+  the agreed path is allowing the app in the policy, never working around it.
+  `build_exe.py --onedir [--sign-thumbprint TP]` builds `dist/AirPodsSync/` (46
+  binaries, 17 unsigned), optionally Authenticode-signs them, and writes
+  `SHA256SUMS.txt`; README has the WDAC steps. In a folder build *Start with
+  Windows* registers the .exe in place (`sys._MEIPASS` is next to it). Signing
+  was not tested here (no code-signing certificate on this PC). The earlier
+  "headset not found" may still be Intel Bluetooth audio offload: once the policy
+  allows the app, read the endpoint list it logs.
 - The .exe's Properties > Details (version, description, author, copyright, repo
   URL) come from a version resource that `build_exe.py` generates from
   `airpods_sync.__version__`, the single source of the version (pyproject reads it

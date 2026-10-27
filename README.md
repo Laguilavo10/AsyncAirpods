@@ -123,6 +123,33 @@ stick) and check *Start with Windows* in the tray menu: the .exe copies itself t
 the original. To update, open the new .exe and check the option again (uncheck
 it first if it is checked); it replaces the installed copy.
 
+### PCs with App Control (WDAC) or AppLocker
+
+Managed PCs may block the unsigned native libraries inside the app (`winrt` for
+Bluetooth and media control, Pillow for images) with *"An Application Control
+policy has blocked this file"*. Don't work around the policy; allow the app in it:
+
+```powershell
+python packaging\build_exe.py --onedir                        # dist\AirPodsSync\
+python packaging\build_exe.py --onedir --sign-thumbprint <TP> # also sign it
+```
+
+`--onedir` builds a folder whose files never change between runs (the single
+.exe unpacks to a new temp folder each time, which is hard to allow). Copy it to
+`C:\Program Files\AirPodsSync`; *Start with Windows* then registers the .exe in
+place. To allow it:
+
+- **Signer rule (recommended):** `--sign-thumbprint` signs every unsigned
+  `.exe/.dll/.pyd` with a code-signing certificate from the Windows store that your
+  policy trusts. New builds stay allowed.
+- **Hash rules:** `SHA256SUMS.txt` in the folder lists every binary. With WDAC, a
+  supplemental policy: `New-CIPolicy -ScanPath "C:\Program Files\AirPodsSync" -Level Hash -UserPEs -MultiplePolicyFormat -FilePath AirPodsSync.xml`,
+  then `Set-CIPolicyIdInfo -SupplementsBasePolicyID <base policy GUID>` and
+  `ConvertFrom-CIPolicy`. Hashes change with every build.
+
+The CodeIntegrity event log (event 3077) names the policy that blocked a file. If
+it is Smart App Control instead of a managed policy, it has no exceptions.
+
 ## Commands
 
 ```powershell

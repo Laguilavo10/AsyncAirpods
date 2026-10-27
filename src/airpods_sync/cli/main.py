@@ -87,7 +87,13 @@ def _log_audio_endpoints_once(controller: CoreAudioHeadsetController) -> None:
 
 def _startup_registration() -> RunKeyStartup | InstalledExeStartup:
     if getattr(sys, "frozen", False):  # packaged .exe (PyInstaller)
-        return InstalledExeStartup(Path(sys.executable), default_install_dir())
+        exe = Path(sys.executable)
+        if Path(sys._MEIPASS).parent == exe.parent:
+            # Folder build (e.g. deployed by IT to Program Files): its libraries live
+            # next to the .exe, so register it where it is instead of copying it alone
+            return RunKeyStartup(InstalledExeStartup.command_for(exe))
+        # Single-file build: it unpacks to a temp folder, so copy it somewhere fixed
+        return InstalledExeStartup(exe, default_install_dir())
     # pythonw.exe runs without a console window
     pythonw = Path(sys.executable).with_name("pythonw.exe")
     return RunKeyStartup(f'"{pythonw}" -m airpods_sync tray')

@@ -5,8 +5,11 @@ Run from the project root: .venv\\Scripts\\python.exe packaging\\build_exe.py
 
 from __future__ import annotations
 
+import argparse
 import datetime
+import hashlib
 import importlib
+import subprocess
 from pathlib import Path
 
 import PyInstaller.__main__
@@ -72,7 +75,61 @@ def _write_version_info() -> Path:
     return path
 
 
+def _parse_args() -> argparse.Namespace:
+    parser = argparse.ArgumentParser(description="Build AirPodsSync.exe with PyInstaller.")
+    parser.add_argument(
+        "--onedir", action="store_true",
+        help="build a folder (dist/AirPodsSync/) instead of a single .exe: its files never "
+             "change between runs, so App Control/AppLocker can allow them by signature, "
+             "hash or path, e.g. once deployed to Program Files",
+    )
+    parser.add_argument(
+        "--sign-thumbprint",
+        help="sign every .exe/.dll/.pyd with this code-signing certificate from "
+             "Cert:\\CurrentUser\\My or Cert:\\LocalMachine\\My (needs --onedir: a single "
+             ".exe unpacks unsigned libraries at run time)",
+    )
+    parser.add_argument("--timestamp-url", default="http://timestamp.digicert.com",
+                        help="RFC 3161 timestamp server for --sign-thumbprint")
+    args = parser.parse_args()
+    if args.sign_thumbprint and not args.onedir:
+        parser.error("--sign-thumbprint needs --onedir")
+    return args
+
+
+def _binaries(folder: Path) -> list[Path]:
+    return sorted(p for p in folder.rglob("*") if p.suffix.lower() in (".exe", ".dll", ".pyd"))
+
+
+def _sign(folder: Path, thumbprint: str, timestamp_url: str) -> None:
+    """Authenticode-sign the folder's binaries; already signed ones (Python's own,
+    signed by the PSF) keep their signature."""
+    script = f"""
+$ErrorActionPreference = 'Stop'
+$cert = Get-ChildItem Cert:\\CurrentUser\\My, Cert:\\LocalMachine\\My -CodeSigningCert |
+    Where-Object Thumbprint -eq '{thumbprint}' | Select-Object -First 1
+if (-not $cert) {{ throw 'Code-signing certificate {thumbprint} not found' }}
+Get-ChildItem -LiteralPath '{folder}' -Recurse -Include *.exe, *.dll, *.pyd |
+    Where-Object {{ (Get-AuthenticodeSignature $_.FullName).Status -ne 'Valid' }} |
+    ForEach-Object {{
+        $result = Set-AuthenticodeSignature -FilePath $_.FullName -Certificate $cert `
+            -HashAlgorithm SHA256 -TimestampServer '{timestamp_url}'
+        if ($result.Status -ne 'Valid') {{ throw "Signing failed for $($_.Name): $($result.StatusMessage)" }}
+    }}
+"""
+    subprocess.run(["powershell", "-NoProfile", "-NonInteractive", "-Command", script], check=True)
+
+
+def _write_hash_manifest(folder: Path) -> Path:
+    """SHA-256 of every binary, for App Control/AppLocker hash rules."""
+    lines = [f"{hashlib.sha256(p.read_bytes()).hexdigest().upper()}  {p.relative_to(folder)}" for p in _binaries(folder)]
+    manifest = folder / "SHA256SUMS.txt"
+    manifest.write_text("\n".join(lines) + "\n", encoding="utf-8")
+    return manifest
+
+
 def main() -> None:
+    args = _parse_args()
     # PyInstaller silently leaves out a module that fails to import, and the .exe
     # then dies at start-up; fail the build instead
     importlib.import_module("airpods_sync.cli.main")
@@ -80,7 +137,7 @@ def main() -> None:
     PyInstaller.__main__.run([
         str(_ROOT / "packaging" / "launcher.py"),
         "--name", _EXE_NAME,
-        "--onefile",
+        "--onedir" if args.onedir else "--onefile",
         "--windowed",
         "--noconfirm",
         "--clean",
@@ -97,6 +154,11 @@ def main() -> None:
         # CustomTkinter reads its themes from JSON files inside the package
         "--collect-data", "customtkinter",
     ])
+    if args.onedir:
+        folder = _ROOT / "dist" / _EXE_NAME
+        if args.sign_thumbprint:
+            _sign(folder, args.sign_thumbprint, args.timestamp_url)
+        print(f"Hash manifest: {_write_hash_manifest(folder)}")
 
 
 if __name__ == "__main__":
