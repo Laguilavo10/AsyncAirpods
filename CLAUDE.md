@@ -61,9 +61,9 @@ audio, and asks the Windows Bluetooth driver to connect or disconnect.
   office PC too). Stop it with `Stop-Process -Name AirPodsSync`. Onefile runs as
   two processes (bootloader + child); that is normal.
 - **0.3.1 shipped broken** (`ModuleNotFoundError: airpods_sync.cli.main` on the
-  office PC): a `
-` written through a heredoc became a real newline, a syntax
-  error PyInstaller silently dropped. Now `tests/test_imports.py` imports every
+  office PC): a backslash-n escape written through a Python heredoc script became
+  a real newline, a syntax error PyInstaller silently dropped. Edit source files
+  with the Edit tool, not with string replacement scripts. Now `tests/test_imports.py` imports every
   module and `build_exe.py` imports the entry modules before building. After a
   build, launch the .exe and check the log has a "Tracking" line before handing it
   over. Same-second edits of a same-size file (e.g. via `git stash pop`) can leave
