@@ -8,6 +8,7 @@ import logging
 import os
 import sys
 import time
+from logging.handlers import RotatingFileHandler
 from pathlib import Path
 
 from airpods_sync.application.auto_switch import AutoSwitcher, AutoSwitchSettings, AutoSwitchStatus
@@ -28,7 +29,11 @@ from airpods_sync.infrastructure.windows_startup import InstalledExeStartup, Run
 
 _DEFAULT_DEVICE_QUERY = "AirPods"
 _DATA_DIR = Path(os.environ.get("LOCALAPPDATA", Path.home())) / "AirPodsSync"
-_LOG_FILE = _DATA_DIR / "airpods-sync.log"
+_LOG_DIR = _DATA_DIR / "logs"
+_LOG_FILE = _LOG_DIR / "airpods-sync.log"
+# Rotated so the log never grows without bound: about 4 MB at most
+_LOG_MAX_BYTES = 1_000_000
+_LOG_BACKUPS = 3
 _PREFERENCES_FILE = _DATA_DIR / "preferences.json"
 
 
@@ -116,6 +121,7 @@ def _tray(args: argparse.Namespace) -> None:
         lambda on_status: _build_runner(args.device, settings, on_status),
         _startup_registration(),
         preferences,
+        _LOG_DIR,
         hotkey,
     ).run()
 
@@ -167,9 +173,10 @@ def _parse_args(argv: list[str] | None) -> argparse.Namespace:
 
 
 def _configure_logging() -> None:
-    _LOG_FILE.parent.mkdir(parents=True, exist_ok=True)
+    _LOG_DIR.mkdir(parents=True, exist_ok=True)
+    handler = RotatingFileHandler(_LOG_FILE, maxBytes=_LOG_MAX_BYTES, backupCount=_LOG_BACKUPS, encoding="utf-8")
     logging.basicConfig(
-        filename=_LOG_FILE,
+        handlers=[handler],
         level=logging.INFO,
         format="%(asctime)s %(levelname)s %(name)s: %(message)s",
     )

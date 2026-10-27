@@ -4,13 +4,15 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import os
 from collections.abc import Callable
 from dataclasses import dataclass
+from pathlib import Path
 from typing import Protocol
 
 import pystray
 
-from airpods_sync import status_text
+from airpods_sync import __version__, status_text
 from airpods_sync.application.auto_switch import AutoSwitchStatus
 from airpods_sync.application.runner import StatusHandler, SwitcherRunner
 from airpods_sync.tray.icons import IconState, draw
@@ -53,8 +55,10 @@ class TrayApp:
         build_runner: RunnerFactory,
         startup: StartupRegistration,
         preferences: Preferences,
+        log_dir: Path,
         hotkey: HotkeyBinding | None = None,
     ) -> None:
+        self._log_dir = log_dir
         self._build_runner = build_runner
         self._startup = startup
         self._preferences = preferences
@@ -113,6 +117,9 @@ class TrayApp:
             ),
             pystray.MenuItem("Notifications", self._toggle_notifications, checked=lambda _: self._notifications_on()),
             pystray.MenuItem("Start with Windows", self._toggle_startup, checked=lambda _: self._startup.is_enabled()),
+            pystray.Menu.SEPARATOR,
+            pystray.MenuItem("Open log folder", self._open_log_folder),
+            pystray.MenuItem(f"AirPods Sync {__version__}", None, enabled=False),
             pystray.MenuItem("Quit", self._quit),
         )
 
@@ -169,6 +176,12 @@ class TrayApp:
                 log.info("Start with Windows enabled")
         except OSError:  # the menu item stays unchecked; the log has the reason
             log.exception("Couldn't change Start with Windows")
+
+    def _open_log_folder(self, icon: pystray.Icon, item: pystray.MenuItem) -> None:
+        try:
+            os.startfile(self._log_dir)
+        except OSError:
+            log.exception("Couldn't open the log folder")
 
     def _quit(self, icon: pystray.Icon, item: pystray.MenuItem) -> None:
         if self._runner:

@@ -47,7 +47,7 @@ audio, and asks the Windows Bluetooth driver to connect or disconnect.
   ```
   Restart it after code changes, and **stop it during hardware experiments** so its
   auto-switch doesn't interfere.
-- Log: `%LOCALAPPDATA%\AirPodsSync\airpods-sync.log`. Read it first when the user
+- Log: `%LOCALAPPDATA%\AirPodsSync\logs\airpods-sync.log` (UTF-8, rotates at 1 MB, 3 backups; before 0.2.0 it was one level up, cp1252). Read it first when the user
   reports a problem: it has connection timings and every decision.
 - Start with Windows uses the `HKCU\...\Run` value `AirPodsSync`. Writing it was
   blocked by the session's permission classifier; the user enables it from the

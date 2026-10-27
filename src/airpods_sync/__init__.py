@@ -1,3 +1,3 @@
 """Educational tooling to read and react to AirPods BLE broadcasts on Windows."""
 
-__version__ = "0.1.0"
+__version__ = "0.2.0"

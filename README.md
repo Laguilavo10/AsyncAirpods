@@ -19,7 +19,8 @@ time: extra clicks are ignored, since each request restarts the handshake) · **
 **amber** = auto-switch paused or holding off · **red** = error (hover for details).
 
 Tray menu: *Use on PC* (also a left click) · *Release* · *Auto-switch* ·
-*Pause media on disconnect* · *Notifications* · *Start with Windows* · *Quit*.
+*Pause media on disconnect* · *Notifications* · *Start with Windows* ·
+*Open log folder* · version · *Quit*.
 
 With *Pause media on disconnect* (on by default), whatever the PC is playing
 (Spotify, a browser video...) is paused when the AirPods leave the PC, however
@@ -122,7 +123,7 @@ pytest                      # run the tests
 AirPods that are farther away, such as other people's. They also only count
 broadcasts from the same model as your paired AirPods, read from Windows.
 
-Log file: `%LOCALAPPDATA%\AirPodsSync\airpods-sync.log`.
+Log file: `%LOCALAPPDATA%\AirPodsSync\logs\airpods-sync.log` (tray menu: *Open log folder*). It rotates at 1 MB and keeps 3 old files.
 
 ### Experiments with `scan --raw`
 

@@ -19,7 +19,8 @@ los clics extra se ignoran, porque cada pedido reinicia la conexión) · **gris*
 **ámbar** = cambio automático pausado o en espera · **rojo** = error (pasa el mouse para ver el detalle).
 
 Menú del ícono: *Use on PC* (también con clic izquierdo) · *Release* · *Auto-switch* ·
-*Pause media on disconnect* · *Notifications* · *Start with Windows* · *Quit*.
+*Pause media on disconnect* · *Notifications* · *Start with Windows* ·
+*Open log folder* · versión · *Quit*.
 
 Con *Pause media on disconnect* (activado por defecto), lo que suene en la PC
 (Spotify, un video del navegador...) se pausa cuando los AirPods se van de la PC,
@@ -122,7 +123,7 @@ pytest                      # ejecutar las pruebas
 para ignorar AirPods más lejanos, como los de otras personas. Además, solo cuentan
 los anuncios del mismo modelo que tus AirPods emparejados, que se lee de Windows.
 
-Archivo de log: `%LOCALAPPDATA%\AirPodsSync\airpods-sync.log`.
+Archivo de log: `%LOCALAPPDATA%\AirPodsSync\logs\airpods-sync.log` (menú del ícono: *Open log folder*). Rota al llegar a 1 MB y guarda 3 archivos anteriores.
 
 ### Experimentos con `scan --raw`
 
