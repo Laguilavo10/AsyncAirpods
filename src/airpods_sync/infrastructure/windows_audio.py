@@ -39,6 +39,14 @@ _STATE_NAMES = {0x1: "active", 0x2: "disabled", 0x4: "not present", 0x8: "unplug
 _BLUETOOTH_FILTER_MARKER = "?\\BTH"  # filter IDs look like {2}.\\?\bthenum#...
 # Stereo filter IDs carry the vendor and product: ..._vid&0001004c_pid&2027#...
 _APPLE_PRODUCT_ID = re.compile(r"_vid&0001004c_pid&([0-9a-f]{4})", re.IGNORECASE)
+# Windows adds this to Apple headsets' names, but not always to every profile's
+# endpoint: stereo and hands-free then look like two devices
+_FIND_MY_SUFFIX = re.compile(r"\s+-\s+Find My$", re.IGNORECASE)
+
+
+def headset_name(endpoint_name: str) -> str:
+    """The headset's name from one of its endpoints, the same for all its profiles."""
+    return _FIND_MY_SUFFIX.sub("", endpoint_name.strip()).strip()
 
 
 class CoreAudioActivityMonitor:
@@ -161,5 +169,5 @@ class CoreAudioHeadsetController:
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")  # pycaw warns about unreadable properties
             properties = AudioUtilities.CreateDevice(device).properties
-        name = (properties.get(_PKEY_DEVICE_INTERFACE_FRIENDLY_NAME) or "").strip()
+        name = headset_name(properties.get(_PKEY_DEVICE_INTERFACE_FRIENDLY_NAME) or "")
         return _EndpointInfo(name, filter_id) if name else None

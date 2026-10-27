@@ -158,6 +158,9 @@ audio, and asks the Windows Bluetooth driver to connect or disconnect.
   2026-10-27: with the radio off the tray retried, and recovered on the next retry
   after turning it on. After that the Windows name showed as
   `AirPods Pro de Andrés` (no " - Find My"): don't rely on the exact name.
+  Later the same day the two profiles disagreed (one endpoint with the suffix, one
+  without) and the tray failed with "'AirPods' matches several devices";
+  `windows_audio.headset_name` now drops the suffix so both group as one device.
 - The user's other headset: Sony WH-CH720N (stereo and "Hands-Free" show up as two
   names). Connect/disconnect is generic; auto-switch needs the AirPods' in-ear signal.
 
