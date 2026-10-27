@@ -80,10 +80,9 @@ def _log_audio_endpoints_once(controller: CoreAudioHeadsetController) -> None:
     except Exception:
         logging.exception("Couldn't list the audio endpoints")
         return
-    logging.warning("Headset not found. Windows audio endpoints (%d):
-  %s",
-                    len(lines), "
-  ".join(lines) or "none")
+    logging.warning(
+        "Headset not found. Windows audio endpoints (%d):\n  %s", len(lines), "\n  ".join(lines) or "none"
+    )
 
 
 def _startup_registration() -> RunKeyStartup | InstalledExeStartup:

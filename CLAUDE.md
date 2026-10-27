@@ -60,6 +60,18 @@ audio, and asks the Windows Bluetooth driver to connect or disconnect.
   works on any PC wherever the .exe was opened from (the user wants it on an
   office PC too). Stop it with `Stop-Process -Name AirPodsSync`. Onefile runs as
   two processes (bootloader + child); that is normal.
+- **0.3.1 shipped broken** (`ModuleNotFoundError: airpods_sync.cli.main` on the
+  office PC): a `
+` written through a heredoc became a real newline, a syntax
+  error PyInstaller silently dropped. Now `tests/test_imports.py` imports every
+  module and `build_exe.py` imports the entry modules before building. After a
+  build, launch the .exe and check the log has a "Tracking" line before handing it
+  over. Same-second edits of a same-size file (e.g. via `git stash pop`) can leave
+  a stale `.pyc`; delete `__pycache__` if the version looks wrong.
+- Office PC (Intel CPU): the headset wasn't found although Bluetooth was on and the
+  AirPods connected. Suspected Intel Bluetooth audio offload (endpoints behind an
+  Intel SST filter, not `bthenum`). 0.3.2 logs every audio endpoint with its filter
+  ID once when the headset isn't found; waiting for that log.
 - The .exe's Properties > Details (version, description, author, copyright, repo
   URL) come from a version resource that `build_exe.py` generates from
   `airpods_sync.__version__`, the single source of the version (pyproject reads it

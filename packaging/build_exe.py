@@ -6,6 +6,7 @@ Run from the project root: .venv\\Scripts\\python.exe packaging\\build_exe.py
 from __future__ import annotations
 
 import datetime
+import importlib
 from pathlib import Path
 
 import PyInstaller.__main__
@@ -72,6 +73,10 @@ def _write_version_info() -> Path:
 
 
 def main() -> None:
+    # PyInstaller silently leaves out a module that fails to import, and the .exe
+    # then dies at start-up; fail the build instead
+    importlib.import_module("airpods_sync.cli.main")
+    importlib.import_module("airpods_sync.tray.app")
     PyInstaller.__main__.run([
         str(_ROOT / "packaging" / "launcher.py"),
         "--name", _EXE_NAME,
