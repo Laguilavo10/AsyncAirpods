@@ -113,8 +113,9 @@ class TrayApp:
         icon.visible = True
         try:
             run_with_retry(self._run_once, self._on_start_failure, self._stopping)
-        except Exception:  # thread boundary: never die silently
+        except BaseException:  # thread boundary: never die silently
             log.exception("Auto-switch supervisor stopped")
+            raise
 
     def _run_once(self) -> None:
         """Build and run auto-switch; blocks until Quit, raises if it can't start or fails."""
@@ -124,7 +125,14 @@ class TrayApp:
         self._runner = runner
         if self._stopping.is_set():  # Quit came while building
             return
-        asyncio.run(runner.run())
+        try:
+            asyncio.run(runner.run())
+        except asyncio.CancelledError as error:
+            # Not an Exception: without this it would end the thread silently,
+            # leaving the icon on its last status (seen as a stale green icon)
+            raise RuntimeError("auto-switch was cancelled") from error
+        if not self._stopping.is_set():
+            raise RuntimeError("auto-switch stopped without Quit")
 
     def _on_start_failure(self, error: Exception, failures: int, delay: float) -> None:
         self._runner = None

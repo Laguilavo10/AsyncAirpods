@@ -7,6 +7,7 @@ import asyncio
 import logging
 import os
 import sys
+import threading
 import time
 from logging.handlers import RotatingFileHandler
 from pathlib import Path
@@ -225,6 +226,15 @@ def _configure_logging() -> None:
         handlers=[handler],
         level=logging.INFO,
         format="%(asctime)s %(levelname)s %(name)s: %(message)s",
+    )
+    # The windowed .exe has no stderr: a thread's uncaught exception would leave no trace
+    threading.excepthook = _log_thread_exception
+
+
+def _log_thread_exception(args: threading.ExceptHookArgs) -> None:
+    thread = args.thread.name if args.thread else "?"
+    logging.critical(
+        "Thread %s died", thread, exc_info=(args.exc_type, args.exc_value, args.exc_traceback)
     )
 
 

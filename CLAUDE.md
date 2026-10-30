@@ -91,12 +91,26 @@ audio, and asks the Windows Bluetooth driver to connect or disconnect.
   `adapter LE=True central=True; active scan: aborted (SUCCESS); passive scan:
   aborted (SUCCESS)`: both modes abort with no error code, so the hardware
   supports LE and something in the Windows Bluetooth stack stops the watcher.
-  Ruled out there: no Bluetooth policy keys, radios privacy `Allow`. Still to
-  check on that PC: the `BTH\MS_BTHLE` "Microsoft Bluetooth LE Enumerator"
-  status, the Intel adapter's driver version (`Win32_PnPSignedDriver`), the
-  `bthserv` / `BluetoothUserService_*` services, and whether Windows' own
-  *Add device → Bluetooth* lists nearby LE devices (if it doesn't, the fault
-  is outside this app).
+  Ruled out there: no Bluetooth policy keys, radios privacy `Allow`.
+  Checked on 2026-10-29: the Bluetooth adapter is a **Realtek** USB
+  (`0BDA:C85C`, lower filter `RtkBtFilter2`, driver 18.4017.2412.2303 of
+  2025-06-30), not Intel; only the CPU is Intel. `BTH\MS_BTHLE`, `bthserv`,
+  `BTAGService`, `BluetoothUserService_*`, `BthLEEnum` all OK; the adapter
+  reports LE, central, peripheral, advertisement offload and extended
+  advertising; every ConsentStore Bluetooth/radios entry is `Allow`. A bare
+  `BluetoothLEAdvertisementWatcher` from the venv (no app code) aborts the same
+  way, also with an Apple manufacturer filter or extended advertisements. But
+  Windows' own discovery (`DeviceInformation.create_watcher` with
+  `BluetoothLEDevice.get_device_selector_from_pairing_state(False)`) scans live:
+  ~150 devices with fresh `System.Devices.Aep.SignalStrength` updates. So the
+  radio works and only per-app advertisement watchers are stopped. AEP
+  properties don't carry manufacturer data, so that discovery can't replace the
+  watcher. **Fixed** by restarting `bthserv` and disabling/enabling the adapter
+  (admin): the bare watcher then got packets in both modes and the app logged
+  `Scanning for BLE advertisements (active)`. Cause unknown (a stuck stack
+  state); if it comes back, repeat that before touching code. In the user's
+  terminal `Enable-PnpDevice` once left the adapter disabled (problem code 22,
+  no Bluetooth headsets at all); enable it again or from Device Manager.
 - The .exe's Properties > Details (version, description, author, copyright, repo
   URL) come from a version resource that `build_exe.py` generates from
   `airpods_sync.__version__`, the single source of the version (pyproject reads it
