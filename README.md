@@ -195,7 +195,8 @@ src/airpods_sync/
 │   ├── auto_switch.py              AutoSwitcher: auto-connect and hold-off rules, manual commands
 │   └── runner.py                   SwitcherRunner: scan + tick loop, thread-safe commands
 ├── infrastructure/         Adapters for concrete libraries and Windows APIs
-│   ├── bleak_source.py             BLE scanning with bleak
+│   ├── bleak_source.py             BLE scanning with bleak (active, else passive)
+│   ├── ble_diagnostics.py          Why Windows refuses to scan, for the log
 │   ├── core_audio_interfaces.py    COM declarations missing from pycaw
 │   ├── windows_audio.py            Audio meter and Bluetooth connect/disconnect
 │   ├── windows_startup.py          Start with Windows (HKCU Run key, self-install)

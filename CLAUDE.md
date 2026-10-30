@@ -80,6 +80,23 @@ audio, and asks the Windows Bluetooth driver to connect or disconnect.
   was not tested here (no code-signing certificate on this PC). The earlier
   "headset not found" may still be Intel Bluetooth audio offload: once the policy
   allows the app, read the endpoint list it logs.
+  With the policy removed (2026-10-29) the headset was found, but every scanner
+  start failed with bleak's "Failed to start scanner" (WinRT watcher ABORTED;
+  bleak drops the reason). 0.3.5 retries in passive mode and, if both fail, logs
+  `BLE scanning unavailable:` with the adapter's LE/central support and each
+  mode's `BluetoothError` (`infrastructure/ble_diagnostics.py`). A watcher's
+  `start()` raises E_ILLEGAL_METHOD_CALL without a Received handler, and
+  `BluetoothAdapter.get_radio_async()` hung here; don't use it. Passive scanning
+  was not yet observed to receive the AirPods. First office result with 0.3.5:
+  `adapter LE=True central=True; active scan: aborted (SUCCESS); passive scan:
+  aborted (SUCCESS)`: both modes abort with no error code, so the hardware
+  supports LE and something in the Windows Bluetooth stack stops the watcher.
+  Ruled out there: no Bluetooth policy keys, radios privacy `Allow`. Still to
+  check on that PC: the `BTH\MS_BTHLE` "Microsoft Bluetooth LE Enumerator"
+  status, the Intel adapter's driver version (`Win32_PnPSignedDriver`), the
+  `bthserv` / `BluetoothUserService_*` services, and whether Windows' own
+  *Add device → Bluetooth* lists nearby LE devices (if it doesn't, the fault
+  is outside this app).
 - The .exe's Properties > Details (version, description, author, copyright, repo
   URL) come from a version resource that `build_exe.py` generates from
   `airpods_sync.__version__`, the single source of the version (pyproject reads it

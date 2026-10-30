@@ -11,6 +11,7 @@ import time
 from logging.handlers import RotatingFileHandler
 from pathlib import Path
 
+from airpods_sync import __version__
 from airpods_sync.application.auto_switch import AutoSwitcher, AutoSwitchSettings, AutoSwitchStatus
 from airpods_sync.application.headsets import find_headset, wait_until_connected
 from airpods_sync.application.ports import BluetoothUnavailableError, DeviceNotFoundError, HeadsetControlError
@@ -230,6 +231,7 @@ def _configure_logging() -> None:
 def main(argv: list[str] | None = None) -> None:
     args = _parse_args(argv)
     _configure_logging()
+    logging.info("AirPods Sync %s starting (%s %s)", __version__, sys.executable, args.command)
     if sys.stdout is not None:  # None under pythonw.exe
         sys.stdout.reconfigure(encoding="utf-8")
         os.system("")  # enables ANSI escape codes on the legacy Windows console

@@ -196,7 +196,8 @@ src/airpods_sync/
 │   ├── auto_switch.py              AutoSwitcher: reglas de conexión y de respeto, comandos manuales
 │   └── runner.py                   SwitcherRunner: bucle de escaneo + evaluación, comandos thread-safe
 ├── infrastructure/         Adaptadores de librerías concretas y APIs de Windows
-│   ├── bleak_source.py             Escaneo BLE con bleak
+│   ├── bleak_source.py             Escaneo BLE con bleak (activo, si no pasivo)
+│   ├── ble_diagnostics.py          Por qué Windows no deja escanear, para el log
 │   ├── core_audio_interfaces.py    Declaraciones COM que no trae pycaw
 │   ├── windows_audio.py            Medidor de audio y conexión/desconexión Bluetooth
 │   ├── windows_startup.py          Inicio con Windows (clave Run de HKCU, autoinstalación)
